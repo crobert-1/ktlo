@@ -23,10 +23,11 @@ Describe the expected behavior in user terms. Include representative inputs, out
 If this feature has a command-line interface, specify:
 
 - Command and subcommand names
-- Flags, arguments, defaults, and validation
+- Flags, arguments, defaults, and validation, including behavior when the command is omitted
 - Whether credentials are required, supported credential sources, and minimum permissions
 - Data or operations unavailable without authentication
-- Output format and exit codes
+- Output format and destination (standard output or standard error), plus exit-code behavior
+- Behavior for unsupported commands or options
 
 Otherwise, write `Not applicable`.
 
@@ -41,7 +42,8 @@ error behavior, and any provider-specific boundaries. Mark undecided items as op
 
 ## Data and external services
 
-Specify external APIs, required fields/scopes, pagination, rate limits, caching, and data retention where relevant.
+Specify external APIs, required fields/scopes, connectivity checks, timeouts, redirects, response handling,
+pagination, rate limits, caching, and data retention where relevant.
 
 ## Failure handling
 

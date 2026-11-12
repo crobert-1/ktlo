@@ -1,0 +1,10 @@
+prStatus:
+  enabled: true
+
+failingTestCheck:
+  enabled: true
+  lookback: 12h
+  maxArtifactAgeHours: 48
+
+repositories:
+  - https://github.com/signalfx/splunk-otel-collector

@@ -1,0 +1,10 @@
+prStatus:
+  enabled: true
+
+failingTestCheck:
+  enabled: false
+  lookback: 7d
+  maxArtifactAgeHours: 48
+
+repositories:
+  - https://github.com/owner/repository
