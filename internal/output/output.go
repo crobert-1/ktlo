@@ -114,13 +114,11 @@ const (
 	separatorCICDOutcomeCounts       = ", "
 	formatPackageIdentity            = "package %s"
 	formatPRCommitLabel              = "%s %s"
-	formatReportGeneratedNotice      = "Report generated %s; configured maximum age is %s. Its findings were not used."
 	formatUnresolvedCISection        = "## CI checks not completed\n\n"
 	formatUnresolvedPRHeading        = "<a id=\"pr-%d\"></a>\n### %s\n"
 	formatTestIdentity               = "test %s"
 	emptyTableCell                   = "—"
 	formatUnavailableReasonNotice    = "Unknown — %s\n"
-	formatUnavailableReportDetails   = "- %s\n"
 	incompleteReportNotice           = "Partial — the report is incomplete; findings use only available observations.\n"
 	formatDay                        = "%d day"
 	formatDays                       = "%d days"
@@ -135,7 +133,6 @@ const (
 	explanationMissingReport         = "The local flaky-analysis report is missing, so no historical failure analysis is available."
 	explanationReportReadError       = "The local flaky-analysis report could not be read, so its findings could not be used."
 	explanationRepositoryMismatch    = "The local flaky-analysis report belongs to a different repository, so its findings could not be used."
-	explanationStaleReport           = "The local flaky-analysis report is older than the configured maximum age, so its findings were not used."
 	explanationUnidentifiableFailure = "The failed CI context could not be matched to a failure in the analysis report."
 	explanationUsesInferredPasses    = "Includes inferred workflow passes."
 	markdownIdentitySeparator        = " / "
@@ -174,8 +171,6 @@ type PullRequestResult struct {
 	FailureAssessments         []testresults.FailureAssessment
 	AnalysisUnavailableReason  testresults.UnknownReason
 	WorkflowFailureParseErrors []string
-	ReportGeneratedAt          time.Time
-	MaxReportAge               time.Duration
 	Lookback                   time.Duration
 }
 
@@ -443,13 +438,6 @@ func writeAnalysisUnavailableNotice(writer io.Writer, result PullRequestResult) 
 	reason := unknownReasonExplanation(result.AnalysisUnavailableReason)
 	if _, err := fmt.Fprintf(writer, formatUnavailableReasonNotice, escapeMarkdown(reason)); err != nil {
 		return fmt.Errorf(errorWriteResultsFile, err)
-	}
-	if result.AnalysisUnavailableReason == testresults.UnknownReasonStaleReport && !result.ReportGeneratedAt.IsZero() {
-		ageLimit := formatDuration(result.MaxReportAge)
-		generatedAt := result.ReportGeneratedAt.UTC().Format(time.RFC3339)
-		if _, err := fmt.Fprintf(writer, formatUnavailableReportDetails, fmt.Sprintf(formatReportGeneratedNotice, generatedAt, ageLimit)); err != nil {
-			return fmt.Errorf(errorWriteResultsFile, err)
-		}
 	}
 	return nil
 }
@@ -885,8 +873,6 @@ func unknownReasonExplanation(reason testresults.UnknownReason) string {
 		return explanationReportReadError
 	case testresults.UnknownReasonRepositoryMismatch:
 		return explanationRepositoryMismatch
-	case testresults.UnknownReasonStaleReport:
-		return explanationStaleReport
 	case testresults.UnknownReasonUnidentifiableFailure:
 		return explanationUnidentifiableFailure
 	default:

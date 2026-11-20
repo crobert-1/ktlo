@@ -53,10 +53,9 @@ Write a versioned JSON file named `workflow-test-analysis.json` locally at
 `results/github/<owner>/<repo>/workflow-test-analysis.json`. The PR status runner reads this local file; do not upload it
 as a GitHub Actions artifact or commit it to the repository. Keep the JSON separate from the KTLO script's generated
 Markdown results. Do not include raw job logs; include test observations and links to source workflow runs or jobs.
-Include a `generatedAt` timestamp and the requested `lookbackStart` so consumers can check freshness and coverage. Each
-workflow attempt records `collectionComplete`; attempts with collection or parsing errors are retried on the next
-incremental run. Older reports without this field are recollected once. The `failingTestCheck.maxArtifactAgeHours`
-config defaults to 48 hours; `0` disables the freshness limit.
+Include a `generatedAt` timestamp and the requested `lookbackStart` so consumers can identify when the report was
+generated and the period it covers. Each workflow attempt records `collectionComplete`; attempts with collection or
+parsing errors are retried on the next incremental run. Older reports without this field are recollected once.
 
 When `failingTestCheck.readme.enabled` is true, render the local report to
 `results/github/<owner>/<repo>/FLAKY-AND-FAILING-TESTS.md`. The README summarizes failures observed on `main`, with separate test
@@ -202,8 +201,8 @@ calculate PR branch rates separately for each commit SHA. PR Status uses only ob
 SHA to classify that revision; older commit observations remain historical context. A completed report with no matching flaky evidence means no
 flaky outcome was identified in the available lookback window. Missing or incomplete reports must not be treated as a
 completed analysis. When a scan is incomplete, retain collected observations and set `analysisStatus` to `incomplete`.
-The report's `generatedAt` is checked against
-`failingTestCheck.maxArtifactAgeHours`, which defaults to 48 hours; setting it to zero disables the freshness limit.
+The report's `generatedAt` records when its contents were last updated. PR Status uses a valid local report regardless
+of its age; run Flaky Test Check to refresh the observations.
 
 Classify a test as flaky if it fails and then passes on retry, if matching matrix jobs within a workflow run produce
 both outcomes, or if the same test has both passing and failing outcomes across separate runs within the lookback
@@ -254,8 +253,8 @@ failure at package level.
 
 The PR status runner reads the local report at `results/github/<owner>/<repo>/workflow-test-analysis.json` and matches
 findings by provider, owner, repository name, PR number, and exact PR head SHA. Findings for a previous head SHA are
-stale and must not be applied to the current PR revision. If the report is missing or older than the configured
-freshness limit, the runner leaves the CI failure unclassified. An incomplete report may classify a failure as `Flaky`
+stale and must not be applied to the current PR revision. If the report is missing, the runner leaves the CI failure
+unclassified. A valid report is used regardless of its age. An incomplete report may classify a failure as `Flaky`
 when its available observations explicitly show both failed and passed outcomes for the same test or workflow/job/step.
 It may classify a failure as `Broken` when all observed outcomes at that location are failures and there is a matching
 `main` observation. The partial report notice must clarify that an unobserved successful run may exist.

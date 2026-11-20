@@ -35,7 +35,6 @@ failingTestCheck:
     overwriteExistingReport: false
   readme:
     enabled: false
-  maxArtifactAgeHours: 48
 
 repositories:
   - url: https://github.com/owner/repository

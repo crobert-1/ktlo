@@ -33,7 +33,6 @@ import (
 )
 
 const (
-	errorInvalidReportMaxAge        = "PR status report max age must not be negative"
 	errorInvalidReportLookback      = "PR status lookback must be greater than zero"
 	errorInvalidStaleAge            = "PR status stale age must be greater than zero"
 	errorMissingGitHubClient        = "GitHub client is required for the PR status check"
@@ -49,7 +48,6 @@ const (
 type Runner struct {
 	dependencyUpdateAuthors []common.PullRequestAuthor
 	githubClient            *github.Client
-	maxReportAge            time.Duration
 	lookback                time.Duration
 	parseWorkflowFailures   bool
 	staleAge                time.Duration
@@ -63,17 +61,12 @@ func (r *Runner) isStale(pullRequest github.PullRequest, now time.Time) bool {
 
 type reportAnalysis struct {
 	report            *testresults.Report
-	generatedAt       time.Time
-	maxAge            time.Duration
 	unavailableReason testresults.UnknownReason
 }
 
-func NewRunner(githubClient *github.Client, dependencyUpdateAuthors []string, maxReportAge time.Duration, lookback time.Duration, staleAge time.Duration, parseWorkflowFailures bool) (*Runner, error) {
+func NewRunner(githubClient *github.Client, dependencyUpdateAuthors []string, lookback time.Duration, staleAge time.Duration, parseWorkflowFailures bool) (*Runner, error) {
 	if githubClient == nil {
 		return nil, errors.New(errorMissingGitHubClient)
-	}
-	if maxReportAge < 0 {
-		return nil, errors.New(errorInvalidReportMaxAge)
 	}
 	if lookback <= 0 {
 		return nil, errors.New(errorInvalidReportLookback)
@@ -92,7 +85,6 @@ func NewRunner(githubClient *github.Client, dependencyUpdateAuthors []string, ma
 	return &Runner{
 		dependencyUpdateAuthors: authors,
 		githubClient:            githubClient,
-		maxReportAge:            maxReportAge,
 		lookback:                lookback,
 		parseWorkflowFailures:   parseWorkflowFailures,
 		staleAge:                staleAge,
@@ -151,8 +143,6 @@ func (r *Runner) Run(ctx context.Context, stdout io.Writer) (resultErr error) {
 			FailureAssessments:        failureAssessments,
 			IsStale:                   isStale,
 			AnalysisUnavailableReason: unknownReason,
-			ReportGeneratedAt:         reportState.generatedAt,
-			MaxReportAge:              reportState.maxAge,
 			Lookback:                  r.lookback,
 		})
 	}
@@ -477,7 +467,7 @@ func ciFailureContextReference(ciContext *github.PullRequestCIContext) testresul
 }
 
 func (r *Runner) loadReportAnalysis() reportAnalysis {
-	analysis := reportAnalysis{maxAge: r.maxReportAge}
+	analysis := reportAnalysis{}
 	report := testresults.NewReport(testresults.ProviderGitHub, r.githubClient.TargetRepository())
 	if err := report.Load(); err != nil {
 		switch {
@@ -490,11 +480,6 @@ func (r *Runner) loadReportAnalysis() reportAnalysis {
 		default:
 			analysis.unavailableReason = testresults.UnknownReasonReportReadError
 		}
-		return analysis
-	}
-	analysis.generatedAt = report.GeneratedAt
-	if analysis.maxAge > 0 && time.Since(report.GeneratedAt) > analysis.maxAge {
-		analysis.unavailableReason = testresults.UnknownReasonStaleReport
 		return analysis
 	}
 	analysis.report = report

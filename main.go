@@ -282,12 +282,11 @@ func runPRStatus(ctx context.Context, githubClient *github.Client, prStatusConfi
 	if err != nil {
 		return err
 	}
-	maxReportAge := time.Duration(failingTestCheck.EffectiveMaxArtifactAgeHours()) * time.Hour
 	staleAge, err := prStatusConfig.EffectiveStaleAge()
 	if err != nil {
 		return err
 	}
-	runner, err := prstatus.NewRunner(githubClient, prStatusConfig.EffectiveDependencyUpdateAuthors(), maxReportAge, lookback, staleAge, prStatusConfig.ParseWorkflowFailures)
+	runner, err := prstatus.NewRunner(githubClient, prStatusConfig.EffectiveDependencyUpdateAuthors(), lookback, staleAge, prStatusConfig.ParseWorkflowFailures)
 	if err != nil {
 		return err
 	}

@@ -23,7 +23,6 @@ failingTestCheck:
     overwriteExistingReport: false
   readme:
     enabled: false
-  maxArtifactAgeHours: 48
 
 vulnerabilityCheck:
   id: ""

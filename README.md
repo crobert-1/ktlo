@@ -35,7 +35,8 @@ can run in the same invocation.
 
 - **PR status** (`prStatus.enabled`, enabled by default) checks open dependency-update pull requests and their CI status.
   It uses an existing local flaky-test report for failure details when available, but does not run analysis or update that
-  report. It writes a Markdown report to `results/github/<owner>/<repository>/DEPENDENCY-BUMP-PRS.md`, with separate
+  report. A valid report is used regardless of age. It writes a Markdown report to
+  `results/github/<owner>/<repository>/DEPENDENCY-BUMP-PRS.md`, with separate
   tables for passed, pending, failed, other, and stale PRs. Missing CI results and in-progress checks appear under
   Pending, which takes precedence when other checks have failed.
 - **Flaky test JSON report** (`failingTestCheck.jsonReport.enabled`, disabled by default) collects workflow runs created
@@ -105,7 +106,6 @@ failingTestCheck:
     overwriteExistingReport: false
   readme:
     enabled: false
-  maxArtifactAgeHours: 48
 
 repositories:
   - url: https://github.com/owner/repository
@@ -144,9 +144,6 @@ repositories:
     - `enabled` (default: `false`): Writes a Markdown summary from the local JSON report. If JSON report generation is
       disabled, the report must already exist. The README reports observations on `main`; unknown classifications are
       shown with their reason. Its recent-failure column links to the source workflow or job.
-  - `maxArtifactAgeHours` (default: `48`): Maximum age, in hours, for consuming a flaky-analysis report in PR status.
-    `0` disables the freshness limit.
-
 Unknown YAML keys are rejected. Both failing-test modes are opt-in; `prStatus` runs by default unless explicitly disabled.
 To generate only the failing-test README from an existing local report without a GitHub token, also set
 `prStatus.enabled: false` and `failingTestCheck.jsonReport.enabled: false`.

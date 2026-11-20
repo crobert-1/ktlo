@@ -66,13 +66,12 @@ const (
 	UnknownReasonMissingReport         UnknownReason = "missing_report"
 	UnknownReasonReportReadError       UnknownReason = "report_read_error"
 	UnknownReasonRepositoryMismatch    UnknownReason = "repository_mismatch"
-	UnknownReasonStaleReport           UnknownReason = "stale_report"
 	UnknownReasonUnidentifiableFailure UnknownReason = "unidentifiable_failure"
 )
 
 func (reason UnknownReason) IsValid() bool {
 	switch reason {
-	case UnknownReasonHeadSHAMismatch, UnknownReasonIncompleteLogCoverage, UnknownReasonInsufficientHistory, UnknownReasonMalformedReport, UnknownReasonMissingReport, UnknownReasonReportReadError, UnknownReasonRepositoryMismatch, UnknownReasonStaleReport, UnknownReasonUnidentifiableFailure:
+	case UnknownReasonHeadSHAMismatch, UnknownReasonIncompleteLogCoverage, UnknownReasonInsufficientHistory, UnknownReasonMalformedReport, UnknownReasonMissingReport, UnknownReasonReportReadError, UnknownReasonRepositoryMismatch, UnknownReasonUnidentifiableFailure:
 		return true
 	default:
 		return false

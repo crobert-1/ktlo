@@ -189,13 +189,12 @@ explanation, and source link, but no counts or rates because package counts can 
 
 Label any failure without enough evidence to determine its classification as `Unknown`, and explain the specific
 reason and what analysis could not be completed. Link to the failure and relevant source workflow run. Standard
-reasons include missing report, stale report, malformed report, repository mismatch, report read error, incomplete
+reasons include missing report, malformed report, repository mismatch, report read error, incomplete
 log coverage, insufficient matching history, unidentifiable test or workflow failure, and PR head SHA mismatch. When
 a report-level issue affects a PR, show one PR-level `Unknown` notice naming the cause and its impact; do not repeat
-that same report issue in each failure block. For a stale report, include its generation time and the configured age
-limit, and state that its findings were not used. Use `failingTestCheck.maxArtifactAgeHours` for this age limit even
-when analysis is disabled; zero disables the limit. Malformed, repository-mismatched, or unreadable reports do not
-prevent the CI results document from being written. For each failed GitHub CI context, try to resolve its details URL
+that same report issue in each failure block. A valid local report is used regardless of its age. Malformed,
+repository-mismatched, or unreadable reports do not prevent the CI results document from being written. For each failed
+GitHub CI context, try to resolve its details URL
 to a report workflow or job first. If no URL matches, use an exact context name only when it identifies one
 most-specific workflow, job, step, or test location in the report. Assess a matched location even when the report
 contains only successful outcomes: count successful outcomes for that same location as passes and the current failed

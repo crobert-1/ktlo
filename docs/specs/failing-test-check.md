@@ -12,9 +12,12 @@ The JSON report mode's `enabled` setting defaults to `false`. The analyzer consu
 workflow interface that supplies repository identity, workflow run attempts, jobs, and step logs. Providers use the
 shared workflow records in `internal/common`; the GitHub adapter maps its native API records into them. The analyzer
 collects workflow run attempts, job and step conclusions, and test results within the configured lookback, then merges
-them into the local report. It passes `failingTestCheck.jsonReport.lookback`
-to the analyzer; it defaults to `7d` and accepts positive duration values such as `30m`, `12h`, and `7d`. Collection or parsing errors mark the report incomplete. With `overwriteExistingReport: false`, a report that covers the requested window is reused and attempts marked complete are skipped; incomplete attempts are retried. Reports without coverage metadata or that do not cover the requested window are collected again. With `overwriteExistingReport: true`, the existing report is discarded and the full lookback is collected. The analyzer does
-not use `failingTestCheck.maxArtifactAgeHours` during collection.
+them into the local report. It passes `failingTestCheck.jsonReport.lookback` to the analyzer; it defaults to `7d` and
+accepts positive duration values such as `30m`, `12h`, and `7d`. Collection or parsing errors mark the report
+incomplete. With `overwriteExistingReport: false`, a report that covers the requested window is reused and attempts
+marked complete are skipped; incomplete attempts are retried. Reports without coverage metadata or that do not cover
+the requested window are collected again. With `overwriteExistingReport: true`, the existing report is discarded and
+the full lookback is collected.
 Test log parsing uses `TestLogParser` implementations selected by descending specificity. The structured Go test JSON
 parser runs before the human-readable Go test parser; if multiple matching parsers share the highest specificity,
 parsing reports an ambiguity instead of relying on registration order. Go test outcome parsing is separate from
@@ -36,11 +39,10 @@ run analysis or update it.
 - Allow multiple analyzer instances to run in parallel. This is a future requirement; the initial implementation does
   not need to account for concurrent analyzer execution.
 
-The config may set `failingTestCheck.jsonReport.lookback` to bound historical evidence; it defaults to `7d` and accepts positive
-Go duration values such as `30m` and `12h`, plus `d` for days. It may set
-`failingTestCheck.maxArtifactAgeHours` to define report freshness; it defaults to 48 hours, and zero disables the
-freshness limit. If the configured lookback extends beyond available provider log retention, analyze available logs
-and mark the report incomplete rather than silently shortening the window. For a failed PR run, the analyzer parses Go test output and compares identified failures with
+The config may set `failingTestCheck.jsonReport.lookback` to bound historical evidence; it defaults to `7d` and accepts
+positive Go duration values such as `30m` and `12h`, plus `d` for days. If the configured lookback extends beyond
+available provider log retention, analyze available logs and mark the report incomplete rather than silently shortening
+the window. For a failed PR run, the analyzer parses Go test output and compares identified failures with
 outcomes from every workflow run on `main` within the lookback window. It classifies a test as flaky when a failed
 attempt passes on retry, when matching matrix jobs within a workflow run produce both outcomes, or when the same test
 has both passing and failing outcomes across runs. Intermittent failures

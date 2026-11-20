@@ -122,8 +122,6 @@ type PullRequestResult struct {
     FailureAssessments          []testresults.FailureAssessment
     AnalysisUnavailableReason   testresults.UnknownReason
     WorkflowFailureParseErrors  []string
-    ReportGeneratedAt           time.Time
-    MaxReportAge                time.Duration
     Lookback                    time.Duration
 }
 
@@ -261,14 +259,19 @@ The top-level `run` method creates one client per repository, including its repo
 enabled functionality. The `internal/prstatus` runner API is:
 
 ```go
-func NewRunner(githubClient *github.Client, maxReportAge time.Duration, lookback time.Duration) (*Runner, error)
+func NewRunner(
+    githubClient *github.Client,
+    dependencyUpdateAuthors []string,
+    lookback time.Duration,
+    staleAge time.Duration,
+    parseWorkflowFailures bool,
+) (*Runner, error)
 func (r *Runner) Run(ctx context.Context, stdout io.Writer) error
 ```
 
-The runner loads the report once per repository, checks freshness, and obtains assessments matching each PR's exact
-head SHA through `internal/testresults`. It passes the configured lookback, report generation time, and age limit to
-the formatter so failure rates and stale-report notices use the same settings. Missing or stale reports do not prevent
-PR Status output.
+The runner loads the report once per repository and obtains assessments matching each PR's exact head SHA through
+`internal/testresults`. It passes the configured lookback to the formatter so failure rates use the same setting.
+Valid reports are used regardless of age; missing reports do not prevent PR Status output.
 
 The runner retrieves open dependency update pull requests using the common author list, queries their CI status through
 `AnalyzePullRequests`, and passes combined PR, CI, and assessment results to `output.PrintPullRequestCIResults`. The
@@ -278,8 +281,8 @@ file creation on stdout.
 ### Flaky test checker
 
 Flaky test analysis writes a versioned JSON report locally for PR Status and lookup mode. No scheduled GitHub Actions
-workflow or remote artifact upload is planned. Its lookback is bounded by provider log retention. The report contract,
-freshness rules, and classification decisions are defined in [flaky-test-analysis.md](flaky-test-analysis.md).
+workflow or remote artifact upload is planned. Its lookback is bounded by provider log retention. The report contract
+and classification decisions are defined in [flaky-test-analysis.md](flaky-test-analysis.md).
 
 The analyzer API is:
 

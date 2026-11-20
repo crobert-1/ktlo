@@ -26,20 +26,18 @@ import (
 )
 
 const (
-	defaultArtifactMaxAgeHours      = 48
-	defaultLookback                 = "7d"
-	emptyString                     = ""
-	errorEmptyRepositories          = "config must include at least one repository"
-	errorEmptyRepositoryURL         = "repository number %d must include a non-empty url"
-	errorNoEnabledRepositories      = "config must include at least one enabled repository when a check is enabled"
-	errorRepositoryEntryType        = "repository entry must be an object"
-	errorLegacyRepositoryEntry      = "repository number %d uses the obsolete URL-only format; use an object with a url field"
-	errorRepositoryUnknownField     = "repository entry has unknown field %q"
-	errorInvalidArtifactMaxAgeHours = "failingTestCheck.maxArtifactAgeHours must not be less than zero"
-	errorInvalidLookback            = "failingTestCheck.jsonReport.lookback must be a positive duration, such as 30m, 12h, or 7d"
-	errorLoadConfig                 = "could not load config file %q: %w"
-	errorMultipleDocuments          = "config file %q must contain a single YAML document"
-	errorInvalidPRStatusStaleAge    = "prStatus.staleAge must be a positive duration, such as 60m, 12h, or 7d"
+	defaultLookback              = "7d"
+	emptyString                  = ""
+	errorEmptyRepositories       = "config must include at least one repository"
+	errorEmptyRepositoryURL      = "repository number %d must include a non-empty url"
+	errorNoEnabledRepositories   = "config must include at least one enabled repository when a check is enabled"
+	errorRepositoryEntryType     = "repository entry must be an object"
+	errorLegacyRepositoryEntry   = "repository number %d uses the obsolete URL-only format; use an object with a url field"
+	errorRepositoryUnknownField  = "repository entry has unknown field %q"
+	errorInvalidLookback         = "failingTestCheck.jsonReport.lookback must be a positive duration, such as 30m, 12h, or 7d"
+	errorInvalidPRStatusStaleAge = "prStatus.staleAge must be a positive duration, such as 60m, 12h, or 7d"
+	errorLoadConfig              = "could not load config file %q: %w"
+	errorMultipleDocuments       = "config file %q must contain a single YAML document"
 )
 
 const defaultPRStatusStaleAge = "7d"
@@ -110,9 +108,8 @@ type OTelGoInstrumentationConfig struct {
 }
 
 type FailingTestCheckConfig struct {
-	JSONReport          FailingTestJSONReportConfig `yaml:"jsonReport"`
-	MaxArtifactAgeHours *int                        `yaml:"maxArtifactAgeHours,omitempty"`
-	Readme              FailingTestReadmeConfig     `yaml:"readme"`
+	JSONReport FailingTestJSONReportConfig `yaml:"jsonReport"`
+	Readme     FailingTestReadmeConfig     `yaml:"readme"`
 }
 
 type FailingTestJSONReportConfig struct {
@@ -195,13 +192,6 @@ func (c FailingTestJSONReportConfig) EffectiveLookback() (time.Duration, error) 
 	return parseLookbackDuration(lookback)
 }
 
-func (c FailingTestCheckConfig) EffectiveMaxArtifactAgeHours() int {
-	if c.MaxArtifactAgeHours == nil {
-		return defaultArtifactMaxAgeHours
-	}
-	return *c.MaxArtifactAgeHours
-}
-
 func (c VulnerabilityCheckConfig) HasID() bool {
 	return strings.TrimSpace(c.ID) != emptyString
 }
@@ -225,9 +215,6 @@ func (c Config) EnabledRepositories() []RepositoryConfig {
 }
 
 func (c Config) Validate() error {
-	if c.FailingTestCheck.MaxArtifactAgeHours != nil && *c.FailingTestCheck.MaxArtifactAgeHours < 0 {
-		return errors.New(errorInvalidArtifactMaxAgeHours)
-	}
 	if _, err := c.FailingTestCheck.JSONReport.EffectiveLookback(); err != nil {
 		return err
 	}
