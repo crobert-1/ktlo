@@ -8,36 +8,72 @@ The shared functionality is implemented in a separate package or module to keep 
 ### YAML configuration
 
 Place configuration loading and validation in `internal/config`. The executable accepts a required `--config` path.
-The YAML contains top-level camelCase blocks for functionality settings and a shared `repositories` list. `prStatus`
-contains an `enabled` boolean that defaults to true when omitted; `failingTestCheck.enabled` defaults to false and its
+The YAML contains top-level camelCase blocks for functionality settings and a shared `repositories` list. Each entry is
+an object containing `url`, optional `enabled` (default `true`), and optional `localPath`. URL-only string entries fail
+configuration validation. Disabled entries are excluded from every check. Vulnerability Check uses `localPath` to scan
+the existing checkout as-is without changing repository files or Git metadata.
+`prStatus`
+contains an `enabled` boolean that defaults to true when omitted. The independent
+`failingTestCheck.jsonReport.enabled` and `failingTestCheck.readme.enabled` options default to false. JSON report
 `lookback` defaults to `7d`, accepting positive Go duration values such as `30m` and `12h` plus `d` for days.
-`prStatus.updateFlakyAnalysisReport` defaults to true; when false, PR Status reads the
-existing flaky-analysis report without updating it. Unknown keys are config errors. When any functionality is enabled, at least one
-repository is required, and the script runs enabled functionality for each configured URL.
+`failingTestCheck.jsonReport.overwriteExistingReport` defaults to false; when false, analysis reuses the existing
+versioned report and processes only workflow attempts not already stored. When true, it ignores the existing report and
+rebuilds the configured lookback.
+`otelGoInstrumentation.enabled` defaults to false. When enabled, non-empty `OTEL_EXPORTER_OTLP_ENDPOINT`,
+`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`, and their matching `*_INSECURE` values
+are applied to the corresponding process environment variables before telemetry setup; omitted or empty values leave
+existing environment values intact. The exporters use gRPC directly, so no protocol selector is needed.
+PR Status reads an existing flaky-analysis report when available and never updates the JSON report. Its
+`parseWorkflowFailures` option defaults to false; when enabled, PR Status parses failed GitHub Actions runs linked from
+failed PR contexts, using batched GraphQL check suite, workflow run, job, and step metadata with the same workflow
+builder and test log parsers. It shares the JSON report lookback, caches run metadata and parsed attempts across PRs for
+that invocation, reuses an exact run attempt already present in a complete local report, and uses REST as a fallback
+when GraphQL metadata is incomplete. It uses those observations only in memory and does not write
+`workflow-test-analysis.json`. Only
+`failingTestCheck.jsonReport.enabled` runs the repository-wide analysis and updates the JSON report. If JSON and README
+modes are enabled together, collect first and render the README from the updated report. README-only mode reads the
+existing local report and does not require GitHub API access. Unknown keys are config errors. When any functionality is
+enabled, at least one repository is required, and the script runs enabled functionality for each configured URL.
 
 The defaulting behavior belongs to the functionality configuration:
 
 ```go
 func (c PRStatusConfig) IsEnabled() bool
-func (c PRStatusConfig) ShouldUpdateFlakyAnalysisReport() bool
-func (c FailingTestCheckConfig) EffectiveLookback() (time.Duration, error)
+func (c FailingTestJSONReportConfig) EffectiveLookback() (time.Duration, error)
 func (c Config) AnyCheckEnabled() bool
 ```
 
 ### Common values
 
 `internal/common` contains repository-independent values shared across packages and has no dependencies on other
-repository packages. It owns the dependency-update PR author type and list:
+repository packages. It owns the dependency-update PR author type:
 
 ```go
 type PullRequestAuthor struct {
     Login string
 }
 
-func DependencyBumpPullRequestAuthors() []PullRequestAuthor
+type Repository struct {
+    Owner string
+    Name  string
+}
+
+type PullRequestReference struct {
+    Number  int
+    URL     string
+    HeadSHA string
+}
+
+func (reference *PullRequestReference) Equals(other *PullRequestReference) bool
+
 ```
 
-The function returns a fresh slice. PR Status and Failing Test Check pass this list to the GitHub client.
+PR Status converts its configured author logins into `PullRequestAuthor` values and passes them to the GitHub client.
+`Repository` and `PullRequestReference` are also shared from this package by GitHub and test-results report types.
+
+`internal/common` also owns the provider-neutral workflow run, pull request association, job, and step types used by
+the analyzer's provider interface and the GitHub client. Provider packages convert their native records into these
+types at their boundaries.
 
 ### GitHub GraphQL client
 
@@ -85,9 +121,13 @@ type PullRequestResult struct {
     CIResults                   github.PullRequestCIResults
     FailureAssessments          []testresults.FailureAssessment
     AnalysisUnavailableReason   testresults.UnknownReason
+    WorkflowFailureParseErrors  []string
+    ReportGeneratedAt           time.Time
+    MaxReportAge                time.Duration
+    Lookback                    time.Duration
 }
 
-func PrintPullRequestCIResults(stdout io.Writer, repository github.Repository, results []PullRequestResult) error
+func PrintPullRequestCIResults(ctx context.Context, stdout io.Writer, repository github.Repository, results []PullRequestResult) error
 
 type FlakyAnalysisResult struct {
     Repository        github.Repository
@@ -98,20 +138,36 @@ type FlakyAnalysisResult struct {
 func PrintFlakyAnalysisResults(stdout io.Writer, results []FlakyAnalysisResult) error
 ```
 
-It writes a Markdown document titled `PR Status Results` to
-`results/<provider>/<owner>/<repository>/RESULTS.md`; the current GitHub output uses `github` as the provider directory.
+It writes a Markdown document titled `Dependency Bump PR Status` to
+`results/<provider>/<owner>/<repository>/DEPENDENCY-BUMP-PRS.md`; the current GitHub output uses `github` as the provider directory.
 The document has separate `Passed`, `Failed`, and `Others` sections. Each section has a table with `Author`, `Pull
 Request`, and `CI/CD` columns. The Pull Request cell links the formatted text
-`title (#number)` to the PR URL. A `SUCCESS` rollup is Passed; `FAILURE` and `ERROR` are Failed; pending, expected,
-missing, unknown, or unavailable results are Others. A pull request without an analysis result is also Others. Once the
-file is completely written, it prints the path and a success confirmation to the supplied `stdout` writer. Writing uses
-a temporary file and replaces the repository's results file only after the new document is complete.
+`title (#number)` to the PR URL. The formatter derives the effective state from individual CI contexts: all reported
+contexts must succeed for `Passed`, and any `FAILURE` or `ERROR` context means `Failed`. Cancelled, skipped, pending,
+expected, unknown, or unavailable contexts belong under `Others`; cancelled and skipped contexts are neither failures
+nor passes. The provider rollup is a fallback when individual contexts are unavailable. A pull request without an
+analysis result is also Others. Once the file is completely written, it prints the path and a success confirmation to
+the supplied `stdout` writer. Writing uses a temporary file and replaces the repository's results file only after the
+new document is complete.
 
-`PrintPullRequestCIResults` adds failure details below the `Failed` table. Test failures include separate main and
-per-PR-commit outcomes and related CI context; non-test failures include identity, reason, links, and classification
-without pass/fail rates. `AnalysisUnavailableReason` explains missing or stale reports. `PrintFlakyAnalysisResults`
-writes local lookup results to stdout and distinguishes unavailable reports from valid lookups with no matches. The
+`PrintPullRequestCIResults` adds one failure-details subsection per failed PR, in the same order as the `Failed` table.
+It puts all distinct test and non-test failures for that PR in one table with failure, classification, latest failure,
+`main` history, PR commit history, and related CI history columns. Unknown classifications include their reason;
+failure messages link to their source run when available. Counts and rates are separated by `main` and PR commit,
+with associated workflow/job/step history when available. Non-test rows and unavailable values use `—` for history
+cells. Successful workflows contribute one inferred pass to each known child job, step, and test location, even when
+that run has no explicit child result. Explicit child failures are retained beside the inferred pass, while an
+explicit child pass is not double-counted. History cells show the number of inferred passes, and non-test rows
+disclose when inferred passes informed classification. Failed CI contexts can use these observations at the same
+most-specific location. Unmatched failed contexts appear as `Unknown` rows with their available name, description or
+summary, and details link. Incomplete but usable evidence is labeled partial. Package-level fallback rows omit
+aggregate counts. Parent failures explained by more specific child failures are suppressed. Report-wide issues appear
+once per PR with a human-readable cause and explanation of the analysis impact. Individual `Unknown` classifications
+explain their reason. `PrintFlakyAnalysisResults` writes local lookup results to stdout and
+distinguishes unavailable reports from valid lookups with no matches. The
 formatter maps `UnknownReason` values to human-readable explanations.
+After failure details, it identifies cancelled checks with links when available and gives a count of skipped checks for
+PRs that have no failed contexts.
 
 ### GitHub API client
 
@@ -127,54 +183,56 @@ func (c *Client) AnalyzePullRequests(ctx context.Context, pullRequests []PullReq
 func (c *Client) AnalyzePullRequest(ctx context.Context, pullRequest PullRequest) (PullRequestCIResults, error)
 func (c *Client) TargetRepository() Repository
 func ParseRepositoryURL(rawURL string) (Repository, error)
-func (c *Client) ListAllWorkflowRunAttempts(ctx context.Context, startedAfter time.Time) ([]WorkflowRunAttempt, error)
-func (c *Client) ListWorkflowJobs(ctx context.Context, runID int64, attempt int) ([]WorkflowJob, error)
-func (c *Client) JobLog(ctx context.Context, jobID int64) (io.ReadCloser, error)
+func (c *Client) ListAllWorkflowRunAttempts(ctx context.Context, startedAfter time.Time) ([]common.WorkflowRunAttempt, error)
+func (c *Client) ListWorkflowJobs(ctx context.Context, runID int64, attempt int) ([]common.WorkflowJob, error)
+func (c *Client) WorkflowAttemptLogArchive(ctx context.Context, runID int64, attempt int) (io.ReadCloser, error)
 var ErrInvalidRepositoryURL error
 var ErrMissingToken error
 ```
 
-The workflow result types preserve provider details at the GitHub boundary:
+The shared provider-neutral workflow types live in `internal/common`:
 
 ```go
 type WorkflowRunAttempt struct {
-    RunID              int64
-    Attempt            int
-    Name               string
-    Branch             string
-    HeadSHA             string
-    RunStartedAt        time.Time
-    Status              string
-    ProviderConclusion  string
-    WorkflowURL         string
-    PullRequests        []AssociatedPullRequest
-}
-
-type AssociatedPullRequest struct {
-    PRNumber int
-    URL      string
-    HeadSHA  string
+    RunID        string
+    Attempt      int
+    Name         string
+    Branch       string
+    HeadSHA      string
+    RunStartedAt time.Time
+    Status       string
+    Conclusion   string
+    WorkflowURL  string
+    PullRequests []PullRequestReference
 }
 
 type WorkflowJob struct {
-    ID                  int64
-    Name                string
-    ProviderConclusion  string
-    JobURL              string
-    Steps               []WorkflowStep
+    ID         string
+    Name       string
+    Conclusion string
+    JobURL     string
+    Steps      []WorkflowStep
 }
 
 type WorkflowStep struct {
-    Number              int
-    Name                string
-    ProviderConclusion  string
+    Number     int
+    Name       string
+    Conclusion string
 }
 ```
+
+GitHub's private REST response types retain GitHub-specific numeric IDs and conclusion enums, then convert to these
+shared types. The failing-test provider interface and GitHub client use the same common workflow records, avoiding
+duplicate provider-neutral struct definitions.
 
 For each supplied PR, `AnalyzePullRequests` calls `AnalyzePullRequest`, returning
 successful results with any collected query errors. The per-PR query reads the status rollup and paginates the PR's
 check runs and legacy status contexts. Each context includes its GraphQL type and available status, conclusion,
 description, required flag, detail links, and check summary fields.
+
+`PullRequestCIResults.EffectiveRollupState` derives the effective state from those contexts. Explicit `FAILURE` or
+`ERROR` contexts are failures; `CANCELLED` and `SKIPPED` contexts are unresolved and do not count as failures or passes.
+The provider's aggregate rollup is used only when individual contexts are unavailable.
 
 `NewClient` validates and stores the HTTPS GitHub.com repository URL using the client's private
 `validateRepositoryURL` method. It configures `internal/graphql` with the stored owner and name as named fields in a
@@ -188,27 +246,33 @@ for transport configuration. `Query` delegates HTTP and GraphQL handling to `int
 from returned errors. Query documents use
 the `$owner` and `$name` variables configured during initialization.
 
-The workflow API returns individual attempts and preserves raw provider statuses and conclusions. Run and job listing
+The workflow API returns individual attempts and preserves raw provider statuses and conclusions as strings in the
+common types. Run and job listing
 paginate internally and return records already collected with an error if a later page fails. The caller processes only
-completed attempts; completed cancelled, timed-out, and other inconclusive outcomes remain available. `JobLog` returns
-a plain-text stream for any completed job, including successful jobs. `ParseRepositoryURL` extracts and validates a
-GitHub repository without network access; `NewClient` reuses it before performing the authenticated access check.
-Workflow run data includes PR associations with `PRNumber` and head SHA when available.
+completed attempts; completed cancelled, timed-out, and other inconclusive outcomes remain available.
+`WorkflowAttemptLogArchive` returns a ZIP stream for an individual attempt. The failing-test provider reads numbered
+step log entries and job-level transcript entries such as `0_<job>.txt` separately; the latter is not a workflow step.
+`ParseRepositoryURL` extracts and validates a GitHub repository without network access; `NewClient` reuses it before
+performing the authenticated access check.
+Workflow run data includes PR associations with `Number` and head SHA when available. The provider adapter converts the
+common string run ID to GitHub's numeric ID only when calling GitHub job and log endpoints.
 
 The top-level `run` method creates one client per repository, including its repository preflight, and reuses it across
 enabled functionality. The `internal/prstatus` runner API is:
 
 ```go
-func NewRunner(githubClient *github.Client, maxReportAge time.Duration) (*Runner, error)
+func NewRunner(githubClient *github.Client, maxReportAge time.Duration, lookback time.Duration) (*Runner, error)
 func (r *Runner) Run(ctx context.Context, stdout io.Writer) error
 ```
 
 The runner loads the report once per repository, checks freshness, and obtains assessments matching each PR's exact
-head SHA through `internal/testresults`. Missing or stale reports do not prevent PR Status output.
+head SHA through `internal/testresults`. It passes the configured lookback, report generation time, and age limit to
+the formatter so failure rates and stale-report notices use the same settings. Missing or stale reports do not prevent
+PR Status output.
 
 The runner retrieves open dependency update pull requests using the common author list, queries their CI status through
 `AnalyzePullRequests`, and passes combined PR, CI, and assessment results to `output.PrintPullRequestCIResults`. The
-formatter writes the three CI/CD groups to `results/github/<owner>/<repository>/RESULTS.md` and reports successful
+formatter writes the CI/CD groups to `results/github/<owner>/<repository>/DEPENDENCY-BUMP-PRS.md` and reports successful
 file creation on stdout.
 
 ### Flaky test checker
@@ -220,38 +284,38 @@ freshness rules, and classification decisions are defined in [flaky-test-analysi
 The analyzer API is:
 
 ```go
-func NewAnalyzer(source workflowSource, settings config.FailingTestCheckConfig) (*Analyzer, error)
+func NewAnalyzer(workflowProvider WorkflowProvider, testLogParsers ...TestLogParser) (*Analyzer, error)
+func NewAnalyzerWithLookbackDuration(workflowProvider WorkflowProvider, lookbackDuration time.Duration, testLogParsers ...TestLogParser) (*Analyzer, error)
 func (a *Analyzer) Run(ctx context.Context) error
 ```
 
-The source contract is:
+The provider contract is:
 
 ```go
-type workflowSource interface {
-    OpenDependencyBumpPullRequests(ctx context.Context, authors []common.PullRequestAuthor) ([]github.PullRequest, error)
-    ListAllWorkflowRunAttempts(ctx context.Context, startedAfter time.Time) ([]github.WorkflowRunAttempt, error)
-    ListWorkflowJobs(ctx context.Context, runID int64, attempt int) ([]github.WorkflowJob, error)
-    JobLog(ctx context.Context, jobID int64) (io.ReadCloser, error)
+type WorkflowProvider interface {
+    Provider() testresults.Provider
+    Repository() common.Repository
+    ListWorkflowRunAttempts(ctx context.Context, startedAfter time.Time) ([]common.WorkflowRunAttempt, error)
+    ListWorkflowJobs(ctx context.Context, runID string, attempt int) ([]common.WorkflowJob, error)
+    StepLogsForAttempt(ctx context.Context, runID string, attempt int, jobs []common.WorkflowJob) (WorkflowAttemptLogs, error)
 }
 ```
 
-The private parser has this boundary:
-
-```go
-func parseJobLog(job github.WorkflowJob, log io.Reader) (testresults.Job, error)
-```
-
-The source supplies dependency-update PRs, run attempts, jobs, and job-log streams. The analyzer parses logs privately,
-merges observations into the shared report, and writes it. It continues after individual collection or parse failures,
+The provider supplies its identity, repository, run attempts, jobs, and attempt logs. It keeps job-level transcripts
+separate from numbered step logs. When the archive provides only a combined job transcript, the GitHub provider uses
+step start and completion timestamps to split it into step logs. The analyzer associates archive entries with selected
+jobs and steps, passes step logs to the configured language parsers, and parses a job transcript into `job.tests` when
+the source step cannot be identified. A combined transcript is not used as an individual failed step's excerpt when
+the step cannot be isolated. It merges observations into the shared report and writes it. It continues after individual collection or parse failures,
 retains available data, marks the report incomplete, writes it, and returns the collected errors. When standalone
-Failing Test Check is enabled or PR Status has `updateFlakyAnalysisReport` enabled, the top-level runner runs the
-analyzer once per repository before PR Status. Execution remains sequential; parallel analyzers are a future
-requirement.
+Failing Test Check is enabled alongside PR Status, the top-level runner runs the analyzer once per repository before PR
+Status. Otherwise PR Status reads the existing report without modifying it. Execution remains sequential; parallel
+analyzers are a future requirement.
 
 PR Status and Failing Test Check use `internal/testresults` for the shared report model, loading, writing, merging,
 history, and assessment API. The report hierarchy is `Report -> Workflow -> Job -> Step -> Test`; tests sit at the
 deepest known parent. Failed tests store `FailureMessage`, while passing or skipped tests omit it. `OutcomeCounts` is a
-computed value containing pass and failure counts only; `PassPercentage() (int, error)` computes the rounded percentage
+computed value containing pass, failure, and inferred pass counts; `PassPercentage() (int, error)` computes the rounded percentage
 and errors when there are no samples. Classification and rate calculations remain separate from report data and file
 I/O.
 
@@ -268,31 +332,77 @@ type Report struct {
 }
 
 type FailureAssessment struct {
-    PullRequest    *PullRequestRef
-    Location       CIFailureLocation
-    Classification Classification
-    History        OutcomeHistory
-    RelatedCI      []CIContextHistory
-    Partial        bool
-    UnknownReason  UnknownReason
+	PullRequest    *PullRequestRef
+	Location       CIFailureLocation
+	Classification Classification
+	History        OutcomeHistory
+	RelatedCI      []CIContextHistory
+	Partial        bool
+	UnknownReason  UnknownReason
+}
+
+type CIContextFailure struct {
+    Name           string
+    DetailsURL     string
+    TargetURL      string
+    FailureMessage string
+    RunStartedAt   time.Time
+}
+
+func (assessment *FailureAssessment) LatestFailureEvidence() *FailureEvidence
+
+type FailureEvidence struct {
+	SourceRun RunReference
+	Message   string
 }
 
 type OutcomeHistory struct {
     MainBranch OutcomeSummary
     PRCommits  []CommitOutcomeSummary
 }
+
+type OutcomeSummary struct {
+    Counts        OutcomeCounts
+    LatestPass    *RunReference
+    LatestFailure *FailureEvidence
+}
+
+type CommitOutcomeSummary struct {
+    Branch        string
+    CommitSHA     string
+    Counts        OutcomeCounts
+    LatestPass    *RunReference
+    LatestFailure *FailureEvidence
+}
+
+type OutcomeCounts struct {
+    Passes         int
+    Failures       int
+    InferredPasses int
+}
 ```
 
-Each `OutcomeSummary` and `CommitOutcomeSummary` contains computed counts and latest pass/failure `RunReference` values.
-`OutcomeCounts` contains `Passes` and `Failures`; no rates are stored in the JSON report. A `CIFailureLocation` identifies
-the deepest known workflow, job, step, or test and includes its known parent names. A `CIContextHistory` records the
-separate workflow, job, or step history related to a test failure.
+`testresults.Repository` and `testresults.PullRequestRef` are aliases of the common types, preserving the report's JSON
+field names while sharing repository and pull-request identity across packages. The persisted `Workflow` remains a
+separate type because it adds normalized outcomes, parsed tests, and failure excerpts to a provider run attempt.
+Each `OutcomeSummary` and `CommitOutcomeSummary` contains computed counts, a latest passing `RunReference`, and latest
+failure `FailureEvidence` that keeps its source run and message together.
+`OutcomeCounts` contains total `Passes`, `Failures`, and the subset of passes inferred from successful workflows in
+`InferredPasses`; these are computed during history aggregation and are not stored in the JSON report. A successful
+workflow contributes one inferred pass per known child location and workflow attempt, unless that location already
+has an explicit pass in that attempt. Explicit child failures remain separate outcomes. A `CIFailureLocation`
+identifies the deepest known workflow, job, step, or test and includes its known parent names. A `CIContextHistory`
+records the separate workflow, job, or step history related to a test failure.
 
 The report API includes `NewReport`, `Load`, `Write`, private `pathFor`, `MergeWorkflowRuns`, `GetOutcomeHistory`,
-`AssessFailure`, `FindAssessments`, and `AssessmentsForPullRequest`. `FindAssessments` accepts exactly one exact test,
-workflow, or job selector. `AssessmentsForPullRequest` matches the PR number and exact current head SHA. `GetOutcomeHistory`
-derives counts and latest evidence links from observations, keeping `main` separate from each PR commit. `AssessFailure`
-computes classification, history, partial state, related CI histories, and any unknown reason.
+`AssessFailure`, `AssessCIContextFailure`, `FindAssessments`, and `AssessmentsForPullRequest`. `FindAssessments` accepts
+exactly one exact test, workflow, or job selector. `AssessmentsForPullRequest` matches the PR number and exact current
+head SHA. `AssessCIContextFailure` resolves a failed CI context against report URLs first and an unambiguous exact
+name second, then assesses the most-specific matching location even if its report observations are only successful.
+It adds the current context failure to that PR head's history. `GetOutcomeHistory` derives counts and latest evidence
+links from explicit observations and inferred child passes, keeping `main` separate from each PR commit. Assessment
+methods compute classification,
+history, partial state, related CI histories, and any unknown reason.
 
 The method signatures are:
 
@@ -303,7 +413,9 @@ func (r *Report) Write() error
 func (r *Report) MergeWorkflowRuns(runs []Workflow, cutoff time.Time) error
 func (r *Report) pathFor() (string, error)
 func (r *Report) GetOutcomeHistory(location CIFailureLocation, pullRequest *PullRequestRef) OutcomeHistory
+func (history *OutcomeHistory) InferredWorkflowPassCount() int
 func (r *Report) AssessFailure(location CIFailureLocation, pullRequest *PullRequestRef) FailureAssessment
+func (r *Report) AssessCIContextFailure(context CIContextFailure, pullRequest *PullRequestRef) (FailureAssessment, bool)
 func (r *Report) FindAssessments(selector FailureSelector) ([]FailureAssessment, error)
 func (r *Report) AssessmentsForPullRequest(pullRequest PullRequestRef) []FailureAssessment
 func (counts *OutcomeCounts) PassPercentage() (int, error)
