@@ -16,8 +16,6 @@ package main
 
 import (
 	"context"
-	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"time"
@@ -30,46 +28,7 @@ import (
 	"ktlo/internal/testresults"
 )
 
-const commandName = "ktlo"
-const emptyString = ""
-const errorMissingConfig = "required flag --config is missing"
-const errorUnexpectedArgs = "unexpected positional arguments: %v"
-const flagConfig = "config"
-const helpConfig = "Path to the KTLO YAML config file"
-const usageText = "Usage: ktlo --config <config.yaml>\n"
-
-func loadConfig(args []string, stderr io.Writer) (*config.Config, int) {
-	flags := flag.NewFlagSet(commandName, flag.ContinueOnError)
-	flags.SetOutput(stderr)
-	flags.Usage = func() {
-		_, _ = fmt.Fprint(stderr, usageText)
-	}
-	configPath := flags.String(flagConfig, emptyString, helpConfig)
-	if err := flags.Parse(args); err != nil {
-		if errors.Is(err, flag.ErrHelp) {
-			return nil, 0
-		}
-		return nil, exitCodeUsage
-	}
-	if len(flags.Args()) > 0 {
-		_, _ = fmt.Fprintf(stderr, errorUnexpectedArgs+lineEnding, flags.Args())
-		return nil, exitCodeUsage
-	}
-	if *configPath == emptyString {
-		_, _ = fmt.Fprintln(stderr, errorMissingConfig)
-		_, _ = fmt.Fprint(stderr, usageText)
-		return nil, exitCodeUsage
-	}
-
-	loadedConfig, err := config.Load(*configPath)
-	if err != nil {
-		_, _ = fmt.Fprintln(stderr, err)
-		return nil, exitCodeUsage
-	}
-	return &loadedConfig, 0
-}
-
-func runFailingTestJSONReport(ctx context.Context, githubClient *github.Client, failingTestConfig config.FailingTestJSONReportConfig) (resultErr error) {
+func runFailingTestJSONReport(ctx context.Context, githubClient *github.Client, failingTestConfig config.FailingTestJSONReportConfig, overwriteExistingReport bool) (resultErr error) {
 	startedAt := time.Now()
 	ctx, span := telemetry.StartSpan(ctx, instrumentationName, spanFailingTestCheck)
 	defer func() {
@@ -84,7 +43,7 @@ func runFailingTestJSONReport(ctx context.Context, githubClient *github.Client, 
 	if err != nil {
 		return err
 	}
-	analyzer, err := failingtest.NewAnalyzerWithLookbackDurationAndOverwrite(workflowProvider, lookback, failingTestConfig.OverwriteExistingReport)
+	analyzer, err := failingtest.NewAnalyzerWithLookbackDurationAndOverwrite(workflowProvider, lookback, overwriteExistingReport)
 	if err != nil {
 		return err
 	}

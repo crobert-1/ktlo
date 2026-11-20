@@ -2,10 +2,9 @@
 
 ## Overview
 
-Flaky test analysis runs through the KTLO script's `failingTestCheck` when enabled in the YAML config. Run the script
-locally to analyze GitHub workflow logs and write a machine-readable report to the local results directory for the PR
-status runner to consume. Do not add a scheduled GitHub Actions workflow at this stage. The first implementation
-targets GitHub; the report layout and contract should also support GitLab.
+Run `ktlo flaky-test-analysis` (`ktlo f`) to analyze GitHub workflow logs and write a machine-readable report to the
+local results directory for the PR status runner to consume. Do not add a scheduled GitHub Actions workflow at this
+stage. The first implementation targets GitHub; the report layout and contract should also support GitLab.
 
 ## Retention and lookback
 
@@ -39,13 +38,13 @@ across invocations and apply the lookback cutoff. Within a report, treat `(provi
 the unique run key. If that run key is already present, do not append it again or count its observations twice.
 Update `generatedAt` after the merged report is written.
 
-`failingTestCheck.jsonReport.overwriteExistingReport` defaults to false. When false, reuse an existing report whose
+By default, reuse an existing report whose
 `lookbackStart` covers the configured window and skip collection and log parsing for stored run attempts marked
 `collectionComplete`. Retry incomplete or newly discovered attempts. If the report is missing `lookbackStart` or does
-not cover the requested window, collect the full lookback to establish complete coverage. When true, discard the
-existing report and rebuild the configured lookback.
-Reject a mismatched `schemaVersion` before collection when overwriting is false, and tell the user to enable
-`overwriteExistingReport` to replace the old report. Do not automatically upgrade report schemas.
+not cover the requested window, collect the full lookback to establish complete coverage. The `--overwrite` option
+discards the existing report and rebuilds the configured lookback. Reject a mismatched
+`schemaVersion` before collection unless `--overwrite` was supplied, and tell the user to use that option to replace
+the old report. Do not automatically upgrade report schemas.
 
 ## Report artifact
 
@@ -57,7 +56,7 @@ Include a `generatedAt` timestamp and the requested `lookbackStart` so consumers
 generated and the period it covers. Each workflow attempt records `collectionComplete`; attempts with collection or
 parsing errors are retried on the next incremental run. Older reports without this field are recollected once.
 
-When `failingTestCheck.readme.enabled` is true, render the local report to
+Run `ktlo generate-report` (`ktlo g`) to render the local report to
 `results/github/<owner>/<repo>/FLAKY-AND-FAILING-TESTS.md`. The README summarizes failures observed on `main`, with separate test
 sections for flaky, broken, and unknown classifications, and separate workflow/job/step sections for flaky, broken, and
 unknown classifications. Each row includes
@@ -202,7 +201,7 @@ SHA to classify that revision; older commit observations remain historical conte
 flaky outcome was identified in the available lookback window. Missing or incomplete reports must not be treated as a
 completed analysis. When a scan is incomplete, retain collected observations and set `analysisStatus` to `incomplete`.
 The report's `generatedAt` records when its contents were last updated. PR Status uses a valid local report regardless
-of its age; run Flaky Test Check to refresh the observations.
+of its age; run `ktlo flaky-test-analysis` to refresh the observations.
 
 Classify a test as flaky if it fails and then passes on retry, if matching matrix jobs within a workflow run produce
 both outcomes, or if the same test has both passing and failing outcomes across separate runs within the lookback

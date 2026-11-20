@@ -7,40 +7,36 @@ The shared functionality is implemented in a separate package or module to keep 
 
 ### YAML configuration
 
-Place configuration loading and validation in `internal/config`. The executable accepts a required `--config` path.
-The YAML contains top-level camelCase blocks for functionality settings and a shared `repositories` list. Each entry is
-an object containing `url`, optional `enabled` (default `true`), and optional `localPath`. URL-only string entries fail
-configuration validation. Disabled entries are excluded from every check. Vulnerability Check uses `localPath` to scan
-the existing checkout as-is without changing repository files or Git metadata.
-`prStatus`
-contains an `enabled` boolean that defaults to true when omitted. The independent
-`failingTestCheck.jsonReport.enabled` and `failingTestCheck.readme.enabled` options default to false. JSON report
-`lookback` defaults to `7d`, accepting positive Go duration values such as `30m` and `12h` plus `d` for days.
-`failingTestCheck.jsonReport.overwriteExistingReport` defaults to false; when false, analysis reuses the existing
-versioned report and processes only workflow attempts not already stored. When true, it ignores the existing report and
-rebuilds the configured lookback.
+Place configuration loading and validation in `internal/config`. The default config path is `config.yaml`, with
+`--config` and `-c` available as command-line overrides. The selected command chooses which operation runs; configuration
+contains shared repository definitions and reusable defaults, not command enablement switches.
+
+Each repository entry is an object containing a required `url`, optional `enabled` (default `true`), and optional
+`localPath`. URL-only entries fail config validation. Disabled entries are excluded from all commands. Vulnerability
+Check uses `localPath` to scan the existing checkout as-is without changing repository files or Git metadata. Every
+command requires at least one enabled repository.
+
+`prStatus.dependencyUpdateAuthors` defaults to the configured dependency bot logins when omitted. `prStatus.staleAge`
+defaults to `7d`, and the `dependency-pr-status update --stale-age` option can override it for one run. The flaky-test
+JSON report lookback defaults to `7d`; `flaky-test-analysis --lookback` can override it for one run. The
+`--overwrite` option forces a full report rebuild. Targeted workflow parsing is enabled by default for dependency PR
+status; `--no-parse-workflow-failures` disables it for one run. These invocation controls are not stored as config
+fields.
+
 `otelGoInstrumentation.enabled` defaults to false. When enabled, non-empty `OTEL_EXPORTER_OTLP_ENDPOINT`,
 `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`, and their matching `*_INSECURE` values
 are applied to the corresponding process environment variables before telemetry setup; omitted or empty values leave
-existing environment values intact. The exporters use gRPC directly, so no protocol selector is needed.
-PR Status reads an existing flaky-analysis report when available and never updates the JSON report. Its
-`parseWorkflowFailures` option defaults to false; when enabled, PR Status parses failed GitHub Actions runs linked from
-failed PR contexts, using batched GraphQL check suite, workflow run, job, and step metadata with the same workflow
-builder and test log parsers. It shares the JSON report lookback, caches run metadata and parsed attempts across PRs for
-that invocation, reuses an exact run attempt already present in a complete local report, and uses REST as a fallback
-when GraphQL metadata is incomplete. It uses those observations only in memory and does not write
-`workflow-test-analysis.json`. Only
-`failingTestCheck.jsonReport.enabled` runs the repository-wide analysis and updates the JSON report. If JSON and README
-modes are enabled together, collect first and render the README from the updated report. README-only mode reads the
-existing local report and does not require GitHub API access. Unknown keys are config errors. When any functionality is
-enabled, at least one repository is required, and the script runs enabled functionality for each configured URL.
+existing environment values intact. The exporters use gRPC directly, so no protocol selector is needed. Unknown YAML
+keys are errors.
 
-The defaulting behavior belongs to the functionality configuration:
+The config API owns parsing and reusable defaults:
 
 ```go
-func (c PRStatusConfig) IsEnabled() bool
+func (c PRStatusConfig) EffectiveStaleAge() (time.Duration, error)
+func (c PRStatusConfig) EffectiveDependencyUpdateAuthors() []string
 func (c FailingTestJSONReportConfig) EffectiveLookback() (time.Duration, error)
-func (c Config) AnyCheckEnabled() bool
+func (c Config) EnabledRepositories() []RepositoryConfig
+func (c Config) Validate() error
 ```
 
 ### Common values
@@ -256,7 +252,7 @@ Workflow run data includes PR associations with `Number` and head SHA when avail
 common string run ID to GitHub's numeric ID only when calling GitHub job and log endpoints.
 
 The top-level `run` method creates one client per repository, including its repository preflight, and reuses it across
-enabled functionality. The `internal/prstatus` runner API is:
+the selected command. The `internal/prstatus` runner API is:
 
 ```go
 func NewRunner(

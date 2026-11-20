@@ -7,7 +7,7 @@ especially which PRs are ready to merge, and which PRs require attention.
 
 ## Current implementation boundary
 
-The top-level `run` method constructs one GitHub GraphQL client with the repository URL and passes it to
+The `dependency-pr-status update` command constructs one GitHub GraphQL client with the repository URL and passes it to
 `internal/prstatus.Runner`. The client is shared across functionality during the invocation. The runner currently
 fetches open dependency bump PRs from the configured author list through a paginated GitHub GraphQL query and writes
 them under `results/github/<owner>/<repository>/`. The runner also queries each PR's paginated GraphQL status check rollup
@@ -17,20 +17,19 @@ under `Pending`; failed or errored rollups without pending checks under `Failed`
 the repository-scoped results file, with a separate Markdown table for each group. After the file is written successfully, the runner reports
 that on stdout. It includes whether each PR is a draft in the analysis data. Review approval, merge conflict, and CI
 approval-to-run are not yet queried. PR Status reads the existing local flaky-analysis report for failure details when
-available; it does not update that report. When standalone Failing Test Check is enabled in the same invocation, the
-analyzer runs once before PR Status and PR Status consumes the updated report. Optionally, `prStatus.parseWorkflowFailures`
-parses only failed GitHub Actions runs linked from failed CI contexts and merges those observations into an in-memory
+available; it does not update that report. The `--parse-workflow-failures` option parses only failed GitHub Actions runs
+linked from failed CI contexts and merges those observations into an in-memory
 report for matching. This targeted parsing uses the normal workflow/job/step/test builder and configured log parsers,
 respects `failingTestCheck.jsonReport.lookback`, and never writes `workflow-test-analysis.json`. The report format is
 described in [flaky-test-analysis.md](flaky-test-analysis.md). Client initialization also performs a repository
 availability probe.
 
-If the report is missing, stale, or incomplete, PR Status reports the corresponding unknown or partial analysis state;
-targeted parsing is performed only when `prStatus.parseWorkflowFailures` is enabled and only for linked failed workflow
-contexts. Only `failingTestCheck.jsonReport.enabled` runs the repository-wide lookback and writes or updates
-`workflow-test-analysis.json`.
+If the report is missing or incomplete, PR Status reports the corresponding unknown or partial analysis state. Valid
+reports are used regardless of age. Targeted parsing of linked failed workflow contexts is enabled by default and can
+be disabled with `--no-parse-workflow-failures`. Repository-wide lookback analysis runs separately through
+`ktlo flaky-test-analysis` and writes or updates `workflow-test-analysis.json`.
 
-`prStatus.parseWorkflowFailures` defaults to `false`. When enabled, PR Status resolves workflow run IDs from failed
+Targeted parsing resolves workflow run IDs from failed
 GitHub Actions check nodes through GraphQL and batches their associated check suites, workflow runs, jobs, and steps.
 The selected run attempt is filtered by the shared JSON report lookback and PR head before logs are downloaded and
 parsed. GitHub Actions runs with incomplete GraphQL metadata fall back to the REST run and jobs endpoints. Non-Actions
@@ -146,8 +145,9 @@ conflicts with complete context results, use the context-derived state, except a
 failures for table placement. A successful CI status alone does not mean the PR is ready to merge because
 approval status is not yet queried.
 
-The `prStatus.staleAge` setting defaults to `7d` and accepts positive durations such as `60m`, `12h`, or `7d`. Place
-an open PR in `Stale` when its latest commit's `committedDate` is older than the current time minus this duration. Do
+The `prStatus.staleAge` setting defaults to `7d` and accepts positive durations such as `60m`, `12h`, or `7d`.
+`dependency-pr-status update --stale-age` overrides this setting for one run. Place an open PR in `Stale` when its
+latest commit's `committedDate` is older than the current time minus this duration. Do
 not fetch CI results or show failure details for stale PRs. If the latest commit timestamp is unavailable, classify
 the PR using its CI results instead.
 
@@ -208,7 +208,7 @@ available description or summary, and details link. For an incomplete but usable
 partial. It may classify a failure as `Flaky` only when available observations show both passes and failures for that
 same location; otherwise classify it as `Unknown` and explain the missing coverage.
 
-For a complete, fresh analysis, classify a failed test, package-level fallback, or workflow/job/step as `Broken` when
+For a complete analysis, classify a failed test, package-level fallback, or workflow/job/step as `Broken` when
 it has failures and no passing observations in the lookback window and at least one matching `main` observation.
 Without matching `main` evidence, classify the failure as `Unknown` for insufficient baseline history, rather than
 `Broken`. Show counts only for failed tests; do not show counts for non-test failures or package-level fallback blocks.

@@ -8,24 +8,15 @@ otelGoInstrumentation:
   OTEL_EXPORTER_OTLP_TRACES_INSECURE: ""
 
 prStatus:
-  enabled: true
   dependencyUpdateAuthors:
     - dependabot
     - renovate
     - srv-gh-o11y-gdi
-  parseWorkflowFailures: false
   staleAge: 7d
 
 failingTestCheck:
   jsonReport:
-    enabled: false
     lookback: 7d
-    overwriteExistingReport: false
-  readme:
-    enabled: false
-
-vulnerabilityCheck:
-  id: ""
 
 repositories:
   - url: https://github.com/owner/repository

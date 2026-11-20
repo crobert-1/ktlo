@@ -2,22 +2,22 @@
 
 ## Overview
 
-Failing Test Check has two independent outputs: a machine-readable JSON report and a user-facing Markdown README.
-Configure them under `failingTestCheck.jsonReport` and `failingTestCheck.readme`. Both are disabled by default and may
-be enabled together. No scheduled GitHub Actions workflow is planned at this stage.
+Flaky-test analysis and Markdown rendering are separate commands. Run `ktlo flaky-test-analysis` (`ktlo f`) to collect
+workflow observations and update the local JSON report, then run `ktlo generate-report` (`ktlo g`) to render its
+Markdown summary. No scheduled GitHub Actions workflow is planned at this stage.
 
 ## Current implementation boundary
 
-The JSON report mode's `enabled` setting defaults to `false`. The analyzer consumes a provider-neutral
-workflow interface that supplies repository identity, workflow run attempts, jobs, and step logs. Providers use the
+The analyzer consumes a provider-neutral workflow interface that supplies repository identity, workflow run attempts,
+jobs, and step logs. Providers use the
 shared workflow records in `internal/common`; the GitHub adapter maps its native API records into them. The analyzer
 collects workflow run attempts, job and step conclusions, and test results within the configured lookback, then merges
 them into the local report. It passes `failingTestCheck.jsonReport.lookback` to the analyzer; it defaults to `7d` and
 accepts positive duration values such as `30m`, `12h`, and `7d`. Collection or parsing errors mark the report
-incomplete. With `overwriteExistingReport: false`, a report that covers the requested window is reused and attempts
+incomplete. By default, a report that covers the requested window is reused and attempts
 marked complete are skipped; incomplete attempts are retried. Reports without coverage metadata or that do not cover
-the requested window are collected again. With `overwriteExistingReport: true`, the existing report is discarded and
-the full lookback is collected.
+the requested window are collected again. The `--overwrite` flag discards the existing report and collects the full
+lookback.
 Test log parsing uses `TestLogParser` implementations selected by descending specificity. The structured Go test JSON
 parser runs before the human-readable Go test parser; if multiple matching parsers share the highest specificity,
 parsing reports an ambiguity instead of relying on registration order. Go test outcome parsing is separate from
@@ -25,11 +25,11 @@ failure excerpt extraction, which uses dedicated extractors for Go test output, 
 generic step errors. Parsers should require result-bearing format evidence rather than claiming logs from a run or
 output marker alone. Additional language parsers can be supplied when constructing the analyzer.
 
-The README mode reads the local JSON report and writes `results/github/<owner>/<repo>/FLAKY-AND-FAILING-TESTS.md`. It summarizes main
+The `generate-report` command reads the local JSON report and writes
+`results/github/<owner>/<repo>/FLAKY-AND-FAILING-TESTS.md`. It summarizes main
 branch workflow, job, step, and test failures; test rows are separated into flaky, broken, and unknown classifications.
-Rows include failure and observation counts, failure rates, and a recent failure example linked to its source run. If
-both modes are enabled, JSON collection runs before README rendering. README-only mode does not call GitHub APIs and
-requires an existing JSON report. De-duplicate parent CI failure rows when the same run has a failed child: omit a
+Rows include failure and observation counts, failure rates, and a recent failure example linked to its source run.
+Report generation does not call GitHub APIs and requires an existing JSON report. De-duplicate parent CI failure rows when the same run has a failed child: omit a
 workflow failure when a job failure identifies it, and omit a job failure when a step failure identifies it. Retain
 parent failures that have no more specific failed child. PR Status independently reads the local report but does not
 run analysis or update it.

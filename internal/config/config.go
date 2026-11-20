@@ -30,7 +30,7 @@ const (
 	emptyString                  = ""
 	errorEmptyRepositories       = "config must include at least one repository"
 	errorEmptyRepositoryURL      = "repository number %d must include a non-empty url"
-	errorNoEnabledRepositories   = "config must include at least one enabled repository when a check is enabled"
+	errorNoEnabledRepositories   = "config must include at least one enabled repository"
 	errorRepositoryEntryType     = "repository entry must be an object"
 	errorLegacyRepositoryEntry   = "repository number %d uses the obsolete URL-only format; use an object with a url field"
 	errorRepositoryUnknownField  = "repository entry has unknown field %q"
@@ -53,7 +53,6 @@ type Config struct {
 	OTelGoInstrumentation OTelGoInstrumentationConfig `yaml:"otelGoInstrumentation"`
 	PRStatus              PRStatusConfig              `yaml:"prStatus"`
 	Repositories          []RepositoryConfig          `yaml:"repositories"`
-	VulnerabilityCheck    VulnerabilityCheckConfig    `yaml:"vulnerabilityCheck"`
 }
 
 type RepositoryConfig struct {
@@ -93,10 +92,6 @@ func (repository *RepositoryConfig) UnmarshalYAML(node *yaml.Node) error {
 	return nil
 }
 
-type VulnerabilityCheckConfig struct {
-	ID string `yaml:"id,omitempty"`
-}
-
 type OTelGoInstrumentationConfig struct {
 	Enabled                         bool   `yaml:"enabled"`
 	OTELExporterOTLPEndpoint        string `yaml:"OTEL_EXPORTER_OTLP_ENDPOINT,omitempty"`
@@ -109,23 +104,14 @@ type OTelGoInstrumentationConfig struct {
 
 type FailingTestCheckConfig struct {
 	JSONReport FailingTestJSONReportConfig `yaml:"jsonReport"`
-	Readme     FailingTestReadmeConfig     `yaml:"readme"`
 }
 
 type FailingTestJSONReportConfig struct {
-	Enabled                 bool    `yaml:"enabled"`
-	Lookback                *string `yaml:"lookback,omitempty"`
-	OverwriteExistingReport bool    `yaml:"overwriteExistingReport"`
-}
-
-type FailingTestReadmeConfig struct {
-	Enabled bool `yaml:"enabled"`
+	Lookback *string `yaml:"lookback,omitempty"`
 }
 
 type PRStatusConfig struct {
 	DependencyUpdateAuthors []string `yaml:"dependencyUpdateAuthors,omitempty"`
-	Enabled                 *bool    `yaml:"enabled"`
-	ParseWorkflowFailures   bool     `yaml:"parseWorkflowFailures"`
 	StaleAge                *string  `yaml:"staleAge,omitempty"`
 }
 
@@ -157,10 +143,6 @@ func Load(path string) (Config, error) {
 	return config, nil
 }
 
-func (c PRStatusConfig) IsEnabled() bool {
-	return c.Enabled == nil || *c.Enabled
-}
-
 func (c PRStatusConfig) EffectiveStaleAge() (time.Duration, error) {
 	staleAge := defaultPRStatusStaleAge
 	if c.StaleAge != nil {
@@ -180,28 +162,12 @@ func (c PRStatusConfig) EffectiveDependencyUpdateAuthors() []string {
 	}
 }
 
-func (c FailingTestJSONReportConfig) IsEnabled() bool {
-	return c.Enabled
-}
-
 func (c FailingTestJSONReportConfig) EffectiveLookback() (time.Duration, error) {
 	lookback := defaultLookback
 	if c.Lookback != nil {
 		lookback = *c.Lookback
 	}
 	return parseLookbackDuration(lookback)
-}
-
-func (c VulnerabilityCheckConfig) HasID() bool {
-	return strings.TrimSpace(c.ID) != emptyString
-}
-
-func (c Config) AnyCheckEnabled() bool {
-	return c.PRStatus.IsEnabled() || c.FailingTestCheck.JSONReport.IsEnabled() || c.FailingTestCheck.Readme.Enabled || c.VulnerabilityCheck.HasID()
-}
-
-func (c Config) RequiresGitHubToken() bool {
-	return c.PRStatus.IsEnabled() || c.FailingTestCheck.JSONReport.IsEnabled() || c.VulnerabilityCheck.HasID()
 }
 
 func (c Config) EnabledRepositories() []RepositoryConfig {
@@ -228,9 +194,6 @@ func (c Config) Validate() error {
 		if strings.TrimSpace(repository.URL) == emptyString {
 			return fmt.Errorf(errorEmptyRepositoryURL, index+1)
 		}
-	}
-	if !c.AnyCheckEnabled() {
-		return nil
 	}
 	if len(c.Repositories) == 0 {
 		return errors.New(errorEmptyRepositories)

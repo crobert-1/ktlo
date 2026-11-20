@@ -17,32 +17,30 @@ to reduce the manual workload currently required to fulfill KTLO requirements.
 #### Central GoLang script
 
 - Refer to [golang-script.md](./golang-script.md) for the script's spec.
-- The executable takes `--config <yaml-file>`. The configuration has a `repositories` list and one camelCase block per
-  functionality, such as `prStatus: { enabled: true }`.
-- `prStatus.enabled` defaults to true and may be disabled explicitly. Enabled functionality runs for each configured
-  repository.
-- The top-level executable also provides a read-only lookup mode accepting one test name, workflow name, or job name.
-  It reads the local flaky-analysis report for configured repositories without fetching logs or starting analysis.
+- The executable uses explicit subcommands: `vulnerability-check` (`v`), `flaky-test-analysis` (`f`),
+  `generate-report` (`g`), and `dependency-pr-status update` (`d u`). Each command has its own help output.
+- `config.yaml` stores shared repository definitions and reusable settings. The command selects the operation; check
+  enablement is no longer controlled by config booleans.
+- Per-run flags can override the flaky-test lookback, rebuild stored analysis, parse linked workflow failures during PR
+  status, and override the stale PR threshold. See [golang-script.md](./golang-script.md) for the flag contract.
 
 #### PR status checks
 
-Implemented first. Refer to [pr-status.md](./pr-status.md) for the initial check's behavior and output.
+Run with `ktlo dependency-pr-status update`. Refer to [pr-status.md](./pr-status.md) for its behavior and output.
 
+#### Vulnerability checks
 
-#### Open vulnerability checks
-
-Future functionality; not part of the initial configuration contract.
-
+Run with `ktlo vulnerability-check <ID>`. Refer to [vulnerability-check.md](./vulnerability-check.md).
 
 #### Flaky test checks
 
-The `failingTestCheck` configuration block is available as an opt-in scaffold. Refer to
-[failing-test-check.md](./failing-test-check.md); analysis and reporting behavior are future work.
+Run analysis with `ktlo flaky-test-analysis` and render Markdown with `ktlo generate-report`. Refer to
+[failing-test-check.md](./failing-test-check.md) and [flaky-test-analysis.md](./flaky-test-analysis.md).
 
 
 ### Repository structure
 
-- One top-level Go executable named `ktlo` that can handle all the KTLO functionalities, with YAML configuration
-  selecting which functionalities to run.
+- One top-level Go executable named `ktlo` that can handle all the KTLO functionalities, with subcommands selecting
+  which operation to run and YAML configuration providing shared settings and repository definitions.
 - Separate packages or modules for each functionality to keep the code organized and maintainable.
 - Use a shared internal package for shared functionality
