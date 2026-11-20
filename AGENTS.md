@@ -8,6 +8,7 @@ These instructions apply to future work in this repository. Follow the user's re
 - Once the user has reviewed and agreed on a package API, implement against that API without reopening the API review unless implementation reveals a concrete blocker or the user asks to revisit it.
 - Implement all files needed for an authorized change in one continuous pass unless the user asks for staged, file-by-file review.
 - Before presenting the completed change, review all changed files against the agreed package API, applicable specifications, and prior review feedback in this file. Incorporate any review comments already provided; do not pause after each file.
+- Commit local changes after every user command, following the commit style below.
 - Use `gofmt` on Go files that you change.
 - For executable build verification, run `make ktlo` rather than `go build ./...`.
 - Do not post PR comments or messages on the user's behalf. Give review feedback in the CLI/conversation. Do not check CI status when reviewing a PR.
