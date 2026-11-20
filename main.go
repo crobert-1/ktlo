@@ -56,7 +56,7 @@ const (
 	errorTelemetryShutdown                = "OpenTelemetry shutdown failed: %v"
 	errorUnexpectedArguments              = "unexpected positional arguments: %v"
 	errorUnknownCommand                   = "unknown command %q"
-	errorVulnerabilityCheck               = "Vulnerability Check failed: %v"
+	errorVulnerabilityCheck               = "Vulnerability Check failed:\n  %v"
 	exitCodeError                         = 1
 	exitCodeUsage                         = 2
 	flagConfigLong                        = "--config"
