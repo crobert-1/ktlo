@@ -1,3 +1,17 @@
+// Copyright Splunk, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package graphql
 
 import (
@@ -10,30 +24,35 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"ktlo/internal/telemetry"
 )
 
 const (
-	acceptHeader          = "Accept"
-	contentTypeHeader     = "Content-Type"
-	defaultRequestTimeout = 10 * time.Second
-	emptyString           = ""
-	errorBuildRequest     = "could not build GraphQL request: %w"
-	errorEncodeRequest    = "could not encode GraphQL request: %w"
-	errorEmptyQuery       = "GraphQL query must not be empty"
-	errorEmptyResult      = "GraphQL result must not be nil"
-	errorGraphQLErrors    = "GraphQL query failed: %s"
-	errorInvalidResponse  = "invalid GraphQL response: %w"
-	errorRequest          = "GraphQL request to %s failed: %w"
-	errorResponseStatus   = "GraphQL request returned HTTP status %s: %s"
-	errorResponseTooLarge = "GraphQL response exceeds %d bytes"
-	errorUnexpectedData   = "GraphQL response does not contain data"
-	graphqlDataKey        = "data"
-	graphqlErrorsKey      = "errors"
-	graphqlMessageKey     = "message"
-	jsonMediaType         = "application/json"
-	maxResponseBytes      = 1 << 20
-	messageSeparator      = "; "
-	nullJSONValue         = "null"
+	acceptHeader               = "Accept"
+	contentTypeHeader          = "Content-Type"
+	defaultRequestTimeout      = 10 * time.Second
+	emptyString                = ""
+	errorBuildRequest          = "could not build GraphQL request: %w"
+	errorCloseResponseBody     = "could not close GraphQL response body from %s: %w"
+	errorEncodeRequest         = "could not encode GraphQL request: %w"
+	errorEmptyQuery            = "GraphQL query must not be empty"
+	errorEmptyResult           = "GraphQL result must not be nil"
+	errorGraphQLErrors         = "GraphQL query failed: %s"
+	errorInvalidResponse       = "invalid GraphQL response: %w"
+	errorRequest               = "GraphQL request to %s failed: %w"
+	errorResponseStatus        = "GraphQL request returned HTTP status %s: %s"
+	errorResponseTooLarge      = "GraphQL response exceeds %d bytes"
+	errorUnexpectedData        = "GraphQL response does not contain data"
+	graphqlDataKey             = "data"
+	graphqlErrorsKey           = "errors"
+	graphqlMessageKey          = "message"
+	jsonMediaType              = "application/json"
+	maxResponseBytes           = 1 << 20
+	messageSeparator           = "; "
+	nullJSONValue              = "null"
+	graphqlInstrumentationName = "ktlo/internal/graphql"
+	spanGraphQLQuery           = "graphql.query"
 )
 
 type Client struct {
@@ -63,7 +82,13 @@ func (c *Client) QueryWithVariables(ctx context.Context, query string, variables
 	return c.query(ctx, query, variables, result)
 }
 
-func (c *Client) query(ctx context.Context, query string, variables any, result any) error {
+func (c *Client) query(ctx context.Context, query string, variables any, result any) (resultErr error) {
+	startedAt := time.Now()
+	ctx, span := telemetry.StartSpan(ctx, graphqlInstrumentationName, spanGraphQLQuery)
+	defer func() {
+		telemetry.FinishSpan(ctx, span, spanGraphQLQuery, startedAt, resultErr != nil)
+	}()
+
 	if strings.TrimSpace(query) == emptyString {
 		return errors.New(errorEmptyQuery)
 	}
@@ -95,7 +120,11 @@ func (c *Client) query(ctx context.Context, query string, variables any, result 
 	if err != nil {
 		return fmt.Errorf(errorRequest, c.endpoint, err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if closeErr := response.Body.Close(); closeErr != nil {
+			resultErr = errors.Join(resultErr, fmt.Errorf(errorCloseResponseBody, c.endpoint, closeErr))
+		}
+	}()
 
 	responseBody, err := io.ReadAll(io.LimitReader(response.Body, maxResponseBytes+1))
 	if err != nil {

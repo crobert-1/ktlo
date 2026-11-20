@@ -1,3 +1,17 @@
+// Copyright Splunk, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package github
 
 import (
@@ -5,27 +19,77 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+
+	"ktlo/internal/common"
+	"ktlo/internal/telemetry"
 )
 
 const (
-	botLoginSuffix                = "[bot]"
-	errorMissingPullRequestCIData = "GitHub response did not include CI/CD data for pull request #%d in %q"
-	errorMissingPullRequestCIPage = "GitHub response indicated another CI/CD context page without an end cursor for pull request #%d in %q"
-	errorMissingPullRequestData   = "GitHub response did not include pull request data for %q"
-	errorMissingPullRequestPage   = "GitHub response indicated another pull request page without an end cursor for %q"
-	errorQueryCICDResults         = "could not query CI/CD results for pull request #%d: %w"
+	botLoginSuffix                        = "[bot]"
+	errorMissingPullRequestCIData         = "GitHub response did not include CI/CD data for pull request #%d in %q"
+	errorMissingPullRequestCIPage         = "GitHub response indicated another CI/CD context page without an end cursor for pull request #%d in %q"
+	errorMissingPullRequestData           = "GitHub response did not include pull request data for %q"
+	errorMissingPullRequestPage           = "GitHub response indicated another pull request page without an end cursor for %q"
+	errorQueryCICDResults                 = "could not query CI/CD results for pull request #%d: %w"
+	spanAnalyzePullRequest                = "github.analyze_pull_request"
+	spanAnalyzePullRequests               = "github.analyze_pull_requests"
+	spanListPullRequests                  = "github.list_pull_requests"
+	traceAttributePullRequest             = "github.pull_request.number"
+	traceAttributePullRequestCount        = "github.pull_request.count"
+	traceAttributePullRequestContextCount = "github.pull_request.ci_context.count"
+	traceAttributePullRequestPageCount    = "github.pull_request.page.count"
+	traceAttributePullRequestResultCount  = "github.pull_request.result.count"
 )
 
 type PullRequest struct {
-	Author  *PullRequestAuthor `json:"author"`
-	IsDraft bool               `json:"isDraft"`
-	Number  int                `json:"number"`
-	Title   string             `json:"title"`
-	URL     string             `json:"url"`
+	Author  *common.PullRequestAuthor `json:"author"`
+	HeadRef PullRequestHeadRef        `json:"headRef"`
+	HeadSHA string                    `json:"headSha"`
+	IsDraft bool                      `json:"isDraft"`
+	Number  int                       `json:"number"`
+	Title   string                    `json:"title"`
+	URL     string                    `json:"url"`
 }
 
-type PullRequestAuthor struct {
-	Login string `json:"login"`
+type PullRequestHeadRef struct {
+	Target PullRequestHeadCommit `json:"target"`
+}
+
+type PullRequestHeadCommit struct {
+	CommittedDate time.Time `json:"committedDate"`
+}
+
+type PullRequestCIRollupState string
+
+const (
+	PullRequestCIRollupStateCancelled  PullRequestCIRollupState = "CANCELLED"
+	PullRequestCIRollupStateError      PullRequestCIRollupState = "ERROR"
+	PullRequestCIRollupStateExpected   PullRequestCIRollupState = "EXPECTED"
+	PullRequestCIRollupStateFailure    PullRequestCIRollupState = "FAILURE"
+	PullRequestCIRollupStateInProgress PullRequestCIRollupState = "IN_PROGRESS"
+	PullRequestCIRollupStatePending    PullRequestCIRollupState = "PENDING"
+	PullRequestCIRollupStateQueued     PullRequestCIRollupState = "QUEUED"
+	PullRequestCIRollupStateRequested  PullRequestCIRollupState = "REQUESTED"
+	PullRequestCIRollupStateSkipped    PullRequestCIRollupState = "SKIPPED"
+	PullRequestCIRollupStateSuccess    PullRequestCIRollupState = "SUCCESS"
+	PullRequestCIRollupStateUnknown    PullRequestCIRollupState = "UNKNOWN"
+	PullRequestCIRollupStateWaiting    PullRequestCIRollupState = "WAITING"
+)
+
+func (state PullRequestCIRollupState) IsValid() bool {
+	switch state {
+	case PullRequestCIRollupStateCancelled, PullRequestCIRollupStateError, PullRequestCIRollupStateExpected,
+		PullRequestCIRollupStateFailure, PullRequestCIRollupStateInProgress, PullRequestCIRollupStatePending,
+		PullRequestCIRollupStateQueued, PullRequestCIRollupStateRequested, PullRequestCIRollupStateSkipped,
+		PullRequestCIRollupStateSuccess, PullRequestCIRollupStateUnknown, PullRequestCIRollupStateWaiting:
+		return true
+	default:
+		return false
+	}
 }
 
 type PullRequestCIResults struct {
@@ -34,12 +98,98 @@ type PullRequestCIResults struct {
 	RollupState string                 `json:"rollupState,omitempty"`
 }
 
+func (results *PullRequestCIResults) EffectiveRollupState() PullRequestCIRollupState {
+	if results == nil {
+		return PullRequestCIRollupStateUnknown
+	}
+	if len(results.Contexts) == 0 {
+		if strings.TrimSpace(results.RollupState) == emptyString {
+			return PullRequestCIRollupState(emptyString)
+		}
+		return results.providerRollupState()
+	}
+
+	var hasCancelledContext bool
+	var hasErrorContext bool
+	var hasFailureContext bool
+	var hasPendingContext bool
+	var hasSkippedContext bool
+	var hasUnknownContext bool
+	for contextIndex := range results.Contexts {
+		contextState := results.Contexts[contextIndex].EffectiveState()
+		switch contextState {
+		case PullRequestCIRollupStateCancelled:
+			hasCancelledContext = true
+		case PullRequestCIRollupStateError:
+			hasErrorContext = true
+		case PullRequestCIRollupStateFailure:
+			hasFailureContext = true
+		case PullRequestCIRollupStateExpected, PullRequestCIRollupStateInProgress, PullRequestCIRollupStatePending,
+			PullRequestCIRollupStateQueued, PullRequestCIRollupStateRequested, PullRequestCIRollupStateWaiting:
+			hasPendingContext = true
+		case PullRequestCIRollupStateSkipped:
+			hasSkippedContext = true
+		case PullRequestCIRollupStateSuccess:
+		default:
+			hasUnknownContext = true
+		}
+	}
+	if hasErrorContext {
+		return PullRequestCIRollupStateError
+	}
+	if hasFailureContext {
+		return PullRequestCIRollupStateFailure
+	}
+	if hasPendingContext {
+		return PullRequestCIRollupStatePending
+	}
+	if hasUnknownContext {
+		return PullRequestCIRollupStateUnknown
+	}
+	if hasCancelledContext {
+		return PullRequestCIRollupStateCancelled
+	}
+	if hasSkippedContext {
+		return PullRequestCIRollupStateSkipped
+	}
+	return PullRequestCIRollupStateSuccess
+}
+
+func (results *PullRequestCIResults) HasPendingChecks() bool {
+	if results == nil {
+		return false
+	}
+	switch results.providerRollupState() {
+	case PullRequestCIRollupStateExpected, PullRequestCIRollupStateInProgress, PullRequestCIRollupStatePending,
+		PullRequestCIRollupStateQueued, PullRequestCIRollupStateRequested, PullRequestCIRollupStateWaiting:
+		return true
+	}
+	for contextIndex := range results.Contexts {
+		if results.Contexts[contextIndex].EffectiveState() == PullRequestCIRollupStatePending {
+			return true
+		}
+	}
+	return false
+}
+
+func (results *PullRequestCIResults) providerRollupState() PullRequestCIRollupState {
+	if results == nil {
+		return PullRequestCIRollupStateUnknown
+	}
+	state := PullRequestCIRollupState(strings.ToUpper(strings.TrimSpace(results.RollupState)))
+	if !state.IsValid() {
+		return PullRequestCIRollupStateUnknown
+	}
+	return state
+}
+
 type PullRequestCIContext struct {
 	CompletedAt string `json:"completedAt,omitempty"`
 	Conclusion  string `json:"conclusion,omitempty"`
 	Context     string `json:"context,omitempty"`
 	Description string `json:"description,omitempty"`
 	DetailsURL  string `json:"detailsUrl,omitempty"`
+	NodeID      string `json:"id,omitempty"`
 	IsRequired  bool   `json:"isRequired"`
 	Name        string `json:"name,omitempty"`
 	StartedAt   string `json:"startedAt,omitempty"`
@@ -49,6 +199,47 @@ type PullRequestCIContext struct {
 	TargetURL   string `json:"targetUrl,omitempty"`
 	Text        string `json:"text,omitempty"`
 	Type        string `json:"__typename"`
+}
+
+func (context *PullRequestCIContext) EffectiveState() PullRequestCIRollupState {
+	if context == nil {
+		return PullRequestCIRollupStateUnknown
+	}
+	state := strings.ToUpper(strings.TrimSpace(context.Conclusion))
+	if state == emptyString {
+		state = strings.ToUpper(strings.TrimSpace(context.State))
+	}
+	if state == emptyString {
+		state = strings.ToUpper(strings.TrimSpace(context.Status))
+	}
+	switch state {
+	case string(PullRequestCIRollupStateCancelled):
+		return PullRequestCIRollupStateCancelled
+	case string(PullRequestCIRollupStateError):
+		return PullRequestCIRollupStateError
+	case string(PullRequestCIRollupStateFailure):
+		return PullRequestCIRollupStateFailure
+	case string(PullRequestCIRollupStateExpected), string(PullRequestCIRollupStateInProgress),
+		string(PullRequestCIRollupStatePending), string(PullRequestCIRollupStateQueued),
+		string(PullRequestCIRollupStateRequested), string(PullRequestCIRollupStateWaiting):
+		return PullRequestCIRollupStatePending
+	case string(PullRequestCIRollupStateSkipped):
+		return PullRequestCIRollupStateSkipped
+	case string(PullRequestCIRollupStateSuccess):
+		return PullRequestCIRollupStateSuccess
+	default:
+		return PullRequestCIRollupStateUnknown
+	}
+}
+
+func (context *PullRequestCIContext) NameForDisplay() string {
+	if context == nil {
+		return ""
+	}
+	if context.Name != emptyString {
+		return context.Name
+	}
+	return context.Context
 }
 
 type pullRequestVariables struct {
@@ -108,19 +299,29 @@ func (c *Client) OpenPullRequests(ctx context.Context) ([]PullRequest, error) {
 	return c.openPullRequests(ctx, openPullRequestsQuery, nil)
 }
 
-func (c *Client) OpenDependencyBumpPullRequests(ctx context.Context, authors []PullRequestAuthor) ([]PullRequest, error) {
+func (c *Client) OpenDependencyBumpPullRequests(ctx context.Context, authors []common.PullRequestAuthor) ([]PullRequest, error) {
 	if len(authors) == 0 {
 		return []PullRequest{}, nil
 	}
 	return c.openPullRequests(ctx, openDependencyBumpPullRequestsQuery, authors)
 }
 
-func (c *Client) AnalyzePullRequests(ctx context.Context, pullRequests []PullRequest) ([]PullRequestCIResults, error) {
+func (c *Client) AnalyzePullRequests(ctx context.Context, pullRequests []PullRequest) (analysisResults []PullRequestCIResults, resultErr error) {
+	startedAt := time.Now()
+	ctx, span := telemetry.StartSpan(ctx, githubInstrumentationName, spanAnalyzePullRequests, attribute.Int(traceAttributePullRequestCount, len(pullRequests)))
+	defer func() {
+		telemetry.RecordDuration(ctx, spanAnalyzePullRequests, startedAt)
+		if resultErr != nil {
+			span.SetStatus(codes.Error, emptyString)
+		}
+		span.SetAttributes(attribute.Int(traceAttributePullRequestResultCount, len(analysisResults)))
+		span.End()
+	}()
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
-	analysisResults := make([]PullRequestCIResults, 0, len(pullRequests))
+	analysisResults = make([]PullRequestCIResults, 0, len(pullRequests))
 	queryErrors := make([]error, 0)
 	for _, pullRequest := range pullRequests {
 		if err := ctx.Err(); err != nil {
@@ -137,9 +338,19 @@ func (c *Client) AnalyzePullRequests(ctx context.Context, pullRequests []PullReq
 	return analysisResults, errors.Join(queryErrors...)
 }
 
-func (c *Client) AnalyzePullRequest(ctx context.Context, pullRequest PullRequest) (PullRequestCIResults, error) {
+func (c *Client) AnalyzePullRequest(ctx context.Context, pullRequest PullRequest) (analysisResults PullRequestCIResults, resultErr error) {
+	startedAt := time.Now()
+	ctx, span := telemetry.StartSpan(ctx, githubInstrumentationName, spanAnalyzePullRequest, attribute.Int(traceAttributePullRequest, pullRequest.Number))
+	defer func() {
+		telemetry.RecordDuration(ctx, spanAnalyzePullRequest, startedAt)
+		if resultErr != nil {
+			span.SetStatus(codes.Error, emptyString)
+		}
+		span.SetAttributes(attribute.Int(traceAttributePullRequestContextCount, len(analysisResults.Contexts)))
+		span.End()
+	}()
 	var after *string
-	analysisResults := PullRequestCIResults{
+	analysisResults = PullRequestCIResults{
 		Contexts: make([]PullRequestCIContext, 0),
 		Number:   pullRequest.Number,
 	}
@@ -180,15 +391,30 @@ func (c *Client) AnalyzePullRequest(ctx context.Context, pullRequest PullRequest
 	}
 }
 
-func (c *Client) openPullRequests(ctx context.Context, query string, authors []PullRequestAuthor) ([]PullRequest, error) {
+func (c *Client) openPullRequests(ctx context.Context, query string, authors []common.PullRequestAuthor) (pullRequests []PullRequest, resultErr error) {
+	pageCount := 0
+	startedAt := time.Now()
+	ctx, span := telemetry.StartSpan(ctx, githubInstrumentationName, spanListPullRequests)
+	defer func() {
+		telemetry.RecordDuration(ctx, spanListPullRequests, startedAt)
+		if resultErr != nil {
+			span.SetStatus(codes.Error, emptyString)
+		}
+		span.SetAttributes(
+			attribute.Int(traceAttributePullRequestCount, len(pullRequests)),
+			attribute.Int(traceAttributePullRequestPageCount, pageCount),
+		)
+		span.End()
+	}()
 	var after *string
 	authorLogins := make(map[string]struct{}, len(authors))
-	pullRequests := make([]PullRequest, 0)
+	pullRequests = make([]PullRequest, 0)
 	for _, author := range authors {
 		authorLogins[normalizeAuthorLogin(author.Login)] = struct{}{}
 	}
 
 	for {
+		pageCount++
 		var page pullRequestsPage
 		variables := pullRequestVariables{
 			After: after,
@@ -218,7 +444,7 @@ func (c *Client) openPullRequests(ctx context.Context, query string, authors []P
 	}
 }
 
-func matchesAuthor(author *PullRequestAuthor, authorLogins map[string]struct{}) bool {
+func matchesAuthor(author *common.PullRequestAuthor, authorLogins map[string]struct{}) bool {
 	if author == nil {
 		return false
 	}
