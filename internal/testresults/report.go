@@ -1,3 +1,17 @@
+// Copyright Splunk, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package testresults
 
 import (
@@ -8,6 +22,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"ktlo/internal/common"
 )
 
 const (
@@ -15,10 +31,10 @@ const (
 	errorInvalidReport    = "invalid test results report %q: %w"
 	errorRequiredField    = "%s is required"
 	pathResultsDirectory  = "results"
-	reportFileName        = "flaky-test-results.json"
+	reportFileName        = "workflow-test-analysis.json"
 	reportFileMode        = 0o644
 	reportDirectoryMode   = 0o755
-	reportTempFilePattern = ".flaky-test-results-*.json"
+	reportTempFilePattern = ".workflow-test-analysis-*.json"
 )
 
 const (
@@ -27,9 +43,11 @@ const (
 )
 
 var (
-	ErrInvalidLookbackCutoff = errors.New("invalid workflow run cutoff")
-	ErrInvalidReportIdentity = errors.New("invalid test results report identity")
-	ErrInvalidWorkflowRun    = errors.New("invalid workflow run")
+	ErrInvalidLookbackCutoff  = errors.New("invalid workflow run cutoff")
+	ErrInvalidReportIdentity  = errors.New("invalid test results report identity")
+	ErrInvalidWorkflowRun     = errors.New("invalid workflow run")
+	ErrMalformedReport        = errors.New("malformed test results report")
+	ErrReportIdentityMismatch = errors.New("test results report identity does not match repository")
 )
 
 type Provider string
@@ -152,28 +170,14 @@ func normalizeEnumJSON(data []byte) (string, error) {
 	return strings.ToLower(value), nil
 }
 
-type Repository struct {
-	Owner string `json:"owner"`
-	Name  string `json:"name"`
-}
-
-type PullRequestRef struct {
-	Number  int    `json:"number"`
-	URL     string `json:"url,omitempty"`
-	HeadSHA string `json:"headSha"`
-}
-
-func (pullRequest *PullRequestRef) Equals(other *PullRequestRef) bool {
-	if pullRequest == nil || other == nil {
-		return pullRequest == other
-	}
-	return pullRequest.Number == other.Number && pullRequest.HeadSHA == other.HeadSHA
-}
+type Repository = common.Repository
+type PullRequestRef = common.PullRequestReference
 
 type Report struct {
 	SchemaVersion  int            `json:"schemaVersion"`
 	Provider       Provider       `json:"provider"`
 	Repository     Repository     `json:"repository"`
+	LookbackStart  time.Time      `json:"lookbackStart,omitempty"`
 	GeneratedAt    time.Time      `json:"generatedAt"`
 	AnalysisStatus AnalysisStatus `json:"analysisStatus"`
 	Workflows      []Workflow     `json:"workflows"`
@@ -230,9 +234,66 @@ type Workflow struct {
 	ProviderConclusion string          `json:"providerConclusion,omitempty"`
 	WorkflowURL        string          `json:"runUrl"`
 	PullRequest        *PullRequestRef `json:"pullRequest,omitempty"`
+	CollectionComplete bool            `json:"collectionComplete"`
 	Jobs               []Job           `json:"jobs,omitempty"`
 	Tests              []Test          `json:"tests,omitempty"`
 	ciFailureLocations []CIFailureLocation
+}
+
+func (workflow *Workflow) hasFailedTestInPackage(packageID string, jobName string, jobURL string) bool {
+	if jobName == "" && jobURL == "" {
+		for _, test := range workflow.Tests {
+			if test.isFailedChildOfPackage(packageID) {
+				return true
+			}
+		}
+		return false
+	}
+	var matchingJob *Job
+	for jobIndex := range workflow.Jobs {
+		job := &workflow.Jobs[jobIndex]
+		if jobURL != "" && job.JobURL != jobURL || jobURL == "" && job.Name != jobName {
+			continue
+		}
+		if matchingJob != nil {
+			return false
+		}
+		matchingJob = job
+	}
+	return matchingJob != nil && matchingJob.hasFailedTestInPackage(packageID)
+}
+
+func (workflow *Workflow) failureIsExplainedByChild(location CIFailureLocation, observation historyObservation) bool {
+	if location.TestKind == TestKindPackage {
+		return workflow.hasFailedTestInPackage(location.TestID, observation.jobName, observation.jobURL)
+	}
+	if location.TestID != "" || location.StepName != "" {
+		return false
+	}
+	if location.JobName == "" {
+		for _, job := range workflow.Jobs {
+			if job.Outcome == OutcomeFailed {
+				return true
+			}
+		}
+		return false
+	}
+	for jobIndex := range workflow.Jobs {
+		job := &workflow.Jobs[jobIndex]
+		jobMatches := job.Name == location.JobName
+		if observation.jobURL != "" {
+			jobMatches = job.JobURL == observation.jobURL
+		}
+		if !jobMatches {
+			continue
+		}
+		for _, step := range job.Steps {
+			if step.Outcome == OutcomeFailed {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (workflow *Workflow) observationsFor(location CIFailureLocation) []historyObservation {
@@ -240,17 +301,22 @@ func (workflow *Workflow) observationsFor(location CIFailureLocation) []historyO
 		return nil
 	}
 	observations := make([]historyObservation, 0)
-	appendTestObservations := func(tests []Test, jobURL string) {
+	appendTestObservations := func(tests []Test, jobName string, jobURL string) {
 		for _, test := range tests {
 			if test.ID != location.TestID || (location.TestKind != "" && test.Kind != location.TestKind) {
 				continue
 			}
-			observations = append(observations, historyObservation{outcome: test.Outcome, jobURL: jobURL})
+			observations = append(observations, historyObservation{
+				outcome: test.Outcome,
+				jobName: jobName,
+				jobURL:  jobURL,
+				message: test.FailureMessage,
+			})
 		}
 	}
 	if location.TestID != "" {
 		if location.JobName == "" && location.StepName == "" {
-			appendTestObservations(workflow.Tests, "")
+			appendTestObservations(workflow.Tests, "", "")
 		}
 		// jobIndex is the current position in workflow.Jobs.
 		for jobIndex := range workflow.Jobs {
@@ -259,18 +325,17 @@ func (workflow *Workflow) observationsFor(location CIFailureLocation) []historyO
 				continue
 			}
 			if location.StepName == "" {
-				appendTestObservations(job.Tests, job.JobURL)
-				continue
+				appendTestObservations(job.Tests, job.Name, job.JobURL)
 			}
 			// stepIndex is the current position in job.Steps.
 			for stepIndex := range job.Steps {
 				step := &job.Steps[stepIndex]
-				if step.Name == location.StepName {
-					appendTestObservations(step.Tests, job.JobURL)
+				if location.StepName == "" || step.Name == location.StepName {
+					appendTestObservations(step.Tests, job.Name, job.JobURL)
 				}
 			}
 		}
-		return observations
+		return workflow.withSuccessfulWorkflowPass(location, observations)
 	}
 	if location.StepName != "" {
 		// jobIndex is the current position in workflow.Jobs.
@@ -283,24 +348,62 @@ func (workflow *Workflow) observationsFor(location CIFailureLocation) []historyO
 			for stepIndex := range job.Steps {
 				step := &job.Steps[stepIndex]
 				if step.Name == location.StepName {
-					observations = append(observations, historyObservation{outcome: step.Outcome, jobURL: job.JobURL})
+					observations = append(observations, historyObservation{
+						outcome: step.Outcome,
+						jobName: job.Name,
+						jobURL:  job.JobURL,
+						message: step.ReasonExcerpt,
+					})
 				}
 			}
 		}
-		return observations
+		return workflow.withSuccessfulWorkflowPass(location, observations)
 	}
 	if location.JobName != "" {
 		// jobIndex is the current position in workflow.Jobs.
 		for jobIndex := range workflow.Jobs {
 			job := &workflow.Jobs[jobIndex]
 			if job.Name == location.JobName {
-				observations = append(observations, historyObservation{outcome: job.Outcome, jobURL: job.JobURL})
+				observations = append(observations, historyObservation{outcome: job.Outcome, jobName: job.Name, jobURL: job.JobURL})
 			}
 		}
-		return observations
+		return workflow.withSuccessfulWorkflowPass(location, observations)
 	}
 	observations = append(observations, historyObservation{outcome: workflow.Outcome})
-	return observations
+	return workflow.withSuccessfulWorkflowPass(location, observations)
+}
+
+func (workflow *Workflow) withSuccessfulWorkflowPass(location CIFailureLocation, observations []historyObservation) []historyObservation {
+	if workflow.Outcome != OutcomePassed {
+		return observations
+	}
+	for _, observation := range observations {
+		if observation.outcome == OutcomePassed {
+			return observations
+		}
+	}
+	return append(observations, historyObservation{
+		outcome:                     OutcomePassed,
+		jobURL:                      workflow.jobURLFor(location),
+		inferredFromWorkflowSuccess: true,
+	})
+}
+
+func (workflow *Workflow) jobURLFor(location CIFailureLocation) string {
+	for jobIndex := range workflow.Jobs {
+		job := &workflow.Jobs[jobIndex]
+		if location.JobName != "" && location.JobName == job.Name {
+			return job.JobURL
+		}
+		if location.JobName == "" && location.StepName != "" {
+			for stepIndex := range job.Steps {
+				if job.Steps[stepIndex].Name == location.StepName {
+					return job.JobURL
+				}
+			}
+		}
+	}
+	return ""
 }
 
 func (workflow *Workflow) Validate() error {
@@ -351,13 +454,27 @@ func (workflow *Workflow) failureLocations() []CIFailureLocation {
 		return workflow.ciFailureLocations
 	}
 	locations := make([]CIFailureLocation, 0)
+	testLocations := make(map[CIFailureLocation]struct{})
+	appendFailedTest := func(test Test) {
+		if test.Outcome != OutcomeFailed {
+			return
+		}
+		location := (&CIFailureLocation{
+			WorkflowName: workflow.Name,
+			TestID:       test.ID,
+			TestKind:     test.Kind,
+		}).testIdentity()
+		if _, exists := testLocations[location]; exists {
+			return
+		}
+		testLocations[location] = struct{}{}
+		locations = append(locations, location)
+	}
 	if workflow.Outcome == OutcomeFailed {
 		locations = append(locations, CIFailureLocation{WorkflowName: workflow.Name})
 	}
 	for _, test := range workflow.Tests {
-		if test.Outcome == OutcomeFailed {
-			locations = append(locations, CIFailureLocation{WorkflowName: workflow.Name, TestID: test.ID, TestKind: test.Kind})
-		}
+		appendFailedTest(test)
 	}
 	// jobIndex is the current position in workflow.Jobs.
 	for jobIndex := range workflow.Jobs {
@@ -366,9 +483,7 @@ func (workflow *Workflow) failureLocations() []CIFailureLocation {
 			locations = append(locations, CIFailureLocation{WorkflowName: workflow.Name, JobName: job.Name})
 		}
 		for _, test := range job.Tests {
-			if test.Outcome == OutcomeFailed {
-				locations = append(locations, CIFailureLocation{WorkflowName: workflow.Name, JobName: job.Name, TestID: test.ID, TestKind: test.Kind})
-			}
+			appendFailedTest(test)
 		}
 		// stepIndex is the current position in job.Steps.
 		for stepIndex := range job.Steps {
@@ -377,9 +492,7 @@ func (workflow *Workflow) failureLocations() []CIFailureLocation {
 				locations = append(locations, CIFailureLocation{WorkflowName: workflow.Name, JobName: job.Name, StepName: step.Name})
 			}
 			for _, test := range step.Tests {
-				if test.Outcome == OutcomeFailed {
-					locations = append(locations, CIFailureLocation{WorkflowName: workflow.Name, JobName: job.Name, StepName: step.Name, TestID: test.ID, TestKind: test.Kind})
-				}
+				appendFailedTest(test)
 			}
 		}
 	}
@@ -394,6 +507,32 @@ type Job struct {
 	JobURL             string  `json:"jobUrl,omitempty"`
 	Steps              []Step  `json:"steps,omitempty"`
 	Tests              []Test  `json:"tests,omitempty"`
+}
+
+func (job *Job) hasFailedTestInPackage(packageID string) bool {
+	for _, test := range job.Tests {
+		if test.isFailedChildOfPackage(packageID) {
+			return true
+		}
+	}
+	for stepIndex := range job.Steps {
+		step := &job.Steps[stepIndex]
+		for _, test := range step.Tests {
+			if test.isFailedChildOfPackage(packageID) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (job *Job) hasTest(testID string, testKind TestKind) bool {
+	for _, test := range job.Tests {
+		if test.ID == testID && test.Kind == testKind {
+			return true
+		}
+	}
+	return false
 }
 
 func (job *Job) Validate() error {
@@ -424,6 +563,15 @@ type Step struct {
 	Tests              []Test  `json:"tests,omitempty"`
 }
 
+func (step *Step) hasTest(testID string, testKind TestKind) bool {
+	for _, test := range step.Tests {
+		if test.ID == testID && test.Kind == testKind {
+			return true
+		}
+	}
+	return false
+}
+
 func (step *Step) Validate() error {
 	if strings.TrimSpace(step.Name) == "" {
 		return fmt.Errorf(errorRequiredField, "step name")
@@ -447,6 +595,12 @@ type Test struct {
 	Kind           TestKind `json:"kind"`
 	Outcome        Outcome  `json:"outcome"`
 	FailureMessage string   `json:"failureMessage,omitempty"`
+}
+
+const testPackageIDSeparator = "."
+
+func (test *Test) isFailedChildOfPackage(packageID string) bool {
+	return test.Kind == TestKindTest && test.Outcome == OutcomeFailed && strings.HasPrefix(test.ID, packageID+testPackageIDSeparator)
 }
 
 func (test *Test) Validate() error {
@@ -490,16 +644,16 @@ func (r *Report) Load() error {
 
 	var loadedReport Report
 	if err := json.Unmarshal(reportData, &loadedReport); err != nil {
-		return fmt.Errorf(errorInvalidReport, reportPath, err)
+		return fmt.Errorf(errorInvalidReport, reportPath, fmt.Errorf("%w: %w", ErrMalformedReport, err))
 	}
 	if loadedReport.Provider != r.Provider {
-		return fmt.Errorf(errorInvalidReport, reportPath, errors.New("test results report provider does not match requested provider"))
+		return fmt.Errorf(errorInvalidReport, reportPath, fmt.Errorf("%w: report provider does not match requested provider", ErrReportIdentityMismatch))
 	}
 	if loadedReport.Repository != r.Repository {
-		return fmt.Errorf(errorInvalidReport, reportPath, errors.New("test results report repository identity does not match requested repository"))
+		return fmt.Errorf(errorInvalidReport, reportPath, fmt.Errorf("%w: report repository does not match requested repository", ErrReportIdentityMismatch))
 	}
 	if err := loadedReport.Validate(); err != nil {
-		return fmt.Errorf(errorInvalidReport, reportPath, err)
+		return fmt.Errorf(errorInvalidReport, reportPath, fmt.Errorf("%w: %w", ErrMalformedReport, err))
 	}
 
 	*r = loadedReport
@@ -566,18 +720,30 @@ func (r *Report) MergeWorkflowRuns(runs []Workflow, cutoff time.Time) error {
 		}
 	}
 
-	mergedWorkflows := make([]Workflow, 0, len(r.Workflows)+len(runs))
-	workflowRunKeys := make(map[workflowRunKey]struct{}, len(r.Workflows)+len(runs))
-	for _, run := range r.Workflows {
+	collectedRunsByKey := make(map[workflowRunKey]Workflow, len(runs))
+	for _, run := range runs {
 		if run.RunStartedAt.Before(cutoff) {
 			continue
 		}
 		key := workflowRunKey{runID: run.RunID, runAttempt: run.RunAttempt}
+		collectedRunsByKey[key] = run
+	}
+	mergedWorkflows := make([]Workflow, 0, len(r.Workflows)+len(runs))
+	workflowRunKeys := make(map[workflowRunKey]struct{}, len(r.Workflows)+len(runs))
+	for _, existingRun := range r.Workflows {
+		if existingRun.RunStartedAt.Before(cutoff) {
+			continue
+		}
+		key := workflowRunKey{runID: existingRun.RunID, runAttempt: existingRun.RunAttempt}
 		if _, exists := workflowRunKeys[key]; exists {
 			continue
 		}
 		workflowRunKeys[key] = struct{}{}
-		mergedWorkflows = append(mergedWorkflows, run)
+		if collectedRun, recollected := collectedRunsByKey[key]; recollected {
+			mergedWorkflows = append(mergedWorkflows, collectedRun)
+			continue
+		}
+		mergedWorkflows = append(mergedWorkflows, existingRun)
 	}
 	for _, run := range runs {
 		if run.RunStartedAt.Before(cutoff) {
@@ -593,6 +759,24 @@ func (r *Report) MergeWorkflowRuns(runs []Workflow, cutoff time.Time) error {
 
 	r.Workflows = mergedWorkflows
 	return nil
+}
+
+func (r *Report) HasPullRequestHeadMismatch(pullRequest *PullRequestRef) bool {
+	if pullRequest == nil {
+		return false
+	}
+	var hasDifferentHeadSHA bool
+	for workflowIndex := range r.Workflows {
+		workflow := &r.Workflows[workflowIndex]
+		if workflow.PullRequest == nil || workflow.PullRequest.Number != pullRequest.Number {
+			continue
+		}
+		if workflow.PullRequest.HeadSHA == pullRequest.HeadSHA {
+			return false
+		}
+		hasDifferentHeadSHA = true
+	}
+	return hasDifferentHeadSHA
 }
 
 func (r *Report) pathFor() (string, error) {
