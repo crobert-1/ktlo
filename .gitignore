@@ -1,0 +1,7 @@
+/.idea/
+/bin/
+/config.yaml
+/.structured-dev-state
+/plan.md
+/research.md
+**/workflow-test-analysis.json
