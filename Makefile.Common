@@ -1,0 +1,32 @@
+GO ?= go
+GOFMT ?= gofmt
+GOLANGCI_LINT ?= golangci-lint
+ADDLICENSE ?= addlicense
+LICENSE_COPYRIGHT ?= Splunk, Inc.
+GO_SOURCE_FILES := $(shell find . -type f -name '*.go' -not -path '*/vendor/*' -not -path '*/.git/*' | sort)
+
+.PHONY: addlicense checklicense fmt lint tidy
+
+addlicense:
+	$(ADDLICENSE) -y "" -c "$(LICENSE_COPYRIGHT)" $(GO_SOURCE_FILES)
+
+checklicense:
+	@if $(ADDLICENSE) -check $(GO_SOURCE_FILES); then \
+		echo "License headers are valid"; \
+	else \
+		echo "License check failed; run 'make addlicense' to add missing headers"; \
+		exit 1; \
+	fi
+
+fmt:
+	@set -e; \
+	dirs="$$($(GO) list -f '{{.Dir}}' ./...)"; \
+	for dir in $$dirs; do \
+		find "$$dir" -maxdepth 1 -type f -name '*.go' -exec $(GOFMT) -w {} +; \
+	done
+
+lint:
+	$(GOLANGCI_LINT) run ./...
+
+tidy:
+	$(GO) mod tidy

@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Go checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install addlicense
+        run: |
+          go install github.com/google/addlicense@v1.2.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Run CI checks
+        run: make ci
+
+      - name: Check module tidiness
+        run: |
+          make gotidy
+          git diff --exit-code -- go.mod go.sum '**/go.mod' '**/go.sum'
+
+      - name: Check Go formatting
+        run: |
+          make gofmt
+          git diff --exit-code -- '*.go'
+
+      - name: Install golangci-lint
+        uses: golangci/golangci-lint-action@v9.3.0
+        with:
+          version: v2.14.0
+          install-only: true
+
+      - name: Run golangci-lint across modules
+        run: make golint
