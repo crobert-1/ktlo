@@ -59,7 +59,7 @@ const (
 var operationDuration metric.Float64Histogram
 
 // Setup initializes OTLP tracing and metrics when enabled in the YAML configuration.
-func Setup(ctx context.Context, instrumentationConfig config.OTelGoInstrumentationConfig) (func(context.Context) error, error) {
+func Setup(ctx context.Context, instrumentationConfig config.TelemetryConfig) (func(context.Context) error, error) {
 	if !instrumentationConfig.Enabled {
 		return func(context.Context) error { return nil }, nil
 	}
@@ -140,17 +140,17 @@ func Setup(ctx context.Context, instrumentationConfig config.OTelGoInstrumentati
 	}, nil
 }
 
-func setConfiguredEnvironmentVariables(instrumentationConfig config.OTelGoInstrumentationConfig) error {
+func setConfiguredEnvironmentVariables(instrumentationConfig config.TelemetryConfig) error {
 	settings := [...]struct {
 		name  string
 		value string
 	}{
-		{name: defaultTraceEndpointEnv, value: instrumentationConfig.OTELExporterOTLPEndpoint},
-		{name: defaultInsecureEnv, value: instrumentationConfig.OTELExporterOTLPInsecure},
-		{name: metricsEndpointEnv, value: instrumentationConfig.OTELExporterOTLPMetricsEndpoint},
-		{name: metricsInsecureEnv, value: instrumentationConfig.OTELExporterOTLPMetricsInsecure},
-		{name: traceEndpointEnv, value: instrumentationConfig.OTELExporterOTLPTracesEndpoint},
-		{name: traceInsecureEnv, value: instrumentationConfig.OTELExporterOTLPTracesInsecure},
+		{name: defaultTraceEndpointEnv, value: instrumentationConfig.OTLP.Endpoint},
+		{name: defaultInsecureEnv, value: instrumentationConfig.OTLP.Insecure},
+		{name: metricsEndpointEnv, value: instrumentationConfig.OTLP.Metrics.Endpoint},
+		{name: metricsInsecureEnv, value: instrumentationConfig.OTLP.Metrics.Insecure},
+		{name: traceEndpointEnv, value: instrumentationConfig.OTLP.Traces.Endpoint},
+		{name: traceInsecureEnv, value: instrumentationConfig.OTLP.Traces.Insecure},
 	}
 	for _, setting := range settings {
 		value := strings.TrimSpace(setting.value)

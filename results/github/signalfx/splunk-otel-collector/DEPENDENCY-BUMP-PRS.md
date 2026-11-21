@@ -7,12 +7,11 @@
 <tr><th>Author</th><th>Pull Request</th><th>CI/CD</th></tr>
 </thead>
 <tbody>
+<tr><td>srv-gh-o11y-gdi</td><td><a href="https://github.com/signalfx/splunk-otel-collector/pull/8471">Update splunk-otel-javaagent to latest (#8471)</a></td><td><a href="#pr-8471">FAILURE</a> — 410 passed, 4 failed, 13 skipped, 10 cancelled</td></tr>
 <tr><td>srv-gh-o11y-gdi</td><td><a href="https://github.com/signalfx/splunk-otel-collector/pull/8458">Update splunk-otel-js to latest (#8458)</a></td><td><a href="#pr-8458">FAILURE</a> — 376 passed, 6 failed, 15 skipped, 19 cancelled</td></tr>
 <tr><td>dependabot</td><td><a href="https://github.com/signalfx/splunk-otel-collector/pull/8442">Bump github.com/gobwas/glob from 0.2.4-0.20181002190808-e7a84e9525fe to 1.1.0 in /internal/signalfx-agent (#8442)</a></td><td><a href="#pr-8442">FAILURE</a> — 23 passed, 18 failed, 40 skipped, 28 cancelled</td></tr>
 <tr><td>dependabot</td><td><a href="https://github.com/signalfx/splunk-otel-collector/pull/8440">Bump github.com/prometheus/prometheus from 0.315.1 to 0.316.0 (#8440)</a></td><td><a href="#pr-8440">FAILURE</a> — 17 passed, 8 failed, 23 skipped, 23 cancelled</td></tr>
 <tr><td>dependabot</td><td><a href="https://github.com/signalfx/splunk-otel-collector/pull/8397">Bump github.com/hashicorp/vault-plugin-auth-gcp from 0.23.2-0.20260604163449-108858b5ffea to 0.24.2 (#8397)</a></td><td><a href="#pr-8397">FAILURE</a> — 11 passed, 12 failed, 25 skipped, 23 cancelled</td></tr>
-<tr><td>dependabot</td><td><a href="https://github.com/signalfx/splunk-otel-collector/pull/8076">Bump ruby from 3.3.8-bookworm to 4.0.0-bookworm in /deployments/puppet (#8076)</a></td><td><a href="#pr-8076">FAILURE</a> — 87 passed, 2 failed, 15 skipped</td></tr>
-<tr><td>dependabot</td><td><a href="https://github.com/signalfx/splunk-otel-collector/pull/7879">Bump actionshub/chef-install from 5.0.2 to 6.0.0 (#7879)</a></td><td><a href="#pr-7879">FAILURE</a> — 102 passed, 8 failed, 13 skipped</td></tr>
 </tbody>
 </table>
 
@@ -25,8 +24,84 @@
 <tbody>
 <tr><td>srv-gh-o11y-gdi</td><td><a href="https://github.com/signalfx/splunk-otel-collector/pull/8420">Update splunk-otel-dotnet to latest (#8420)</a></td></tr>
 <tr><td>dependabot</td><td><a href="https://github.com/signalfx/splunk-otel-collector/pull/8415">Bump ansible/ansible-lint from 26.10.1 to 26.11.0 (#8415)</a></td></tr>
+<tr><td>dependabot</td><td><a href="https://github.com/signalfx/splunk-otel-collector/pull/8076">Bump ruby from 3.3.8-bookworm to 4.0.0-bookworm in /deployments/puppet (#8076)</a></td></tr>
+<tr><td>dependabot</td><td><a href="https://github.com/signalfx/splunk-otel-collector/pull/7879">Bump actionshub/chef-install from 5.0.2 to 6.0.0 (#7879)</a></td></tr>
 </tbody>
 </table>
+
+<a id="pr-8471"></a>
+### [Update splunk-otel-javaagent to latest (#8471)](https://github.com/signalfx/splunk-otel-collector/pull/8471)
+
+Partial — the report is incomplete; findings use only available observations.
+- Could not parse a failed workflow: could not parse workflow run 44700020780 attempt 1: could not read logs for workflow run 44700020780 attempt 1: GitHub workflow attempt log archive for run 44700020780 attempt 1 has no logs for job "Windows Test (ansible>=13.0.0, <14.0.0, 2019, custom_vars)"<br>GitHub workflow attempt log archive for run 44700020780 attempt 1 has no logs for job "Windows Test (ansible>=13.0.0, <14.0.0, 2022, with_instrumentation)"<br>GitHub workflow attempt log archive for run 44700020780 attempt 1 has no logs for job "Windows Test (ansible>=13.0.0, <14.0.0, 2019, custom_vars_install_old_version)"<br>GitHub workflow attempt log archive for run 44700020780 attempt 1 has no logs for job "Windows Test (ansible>=13.0.0, <14.0.0, 2019, with_instrumentation)"<br>GitHub workflow attempt log archive for run 44700020780 attempt 1 has no logs for job "Windows Test (ansible>=13.0.0, <14.0.0, 2019, default)"<br>GitHub workflow attempt log archive for run 44700020780 attempt 1 has no logs for job "Windows Test (ansible>=13.0.0, <14.0.0, 2022, custom_vars)"<br>GitHub workflow attempt log archive for run 44700020780 attempt 1 has no logs for job "Windows Test (ansible>=13.0.0, <14.0.0, 2022, custom_vars_install_old_version)"<br>GitHub workflow attempt log archive for run 44700020780 attempt 1 has no logs for job "Windows Test (ansible>=13.0.0, <14.0.0, 2022, default)"<br>GitHub workflow attempt log archive for run 44700020780 attempt 1 has no logs for job "Windows Test (ansible>=13.0.0, <14.0.0, 2019, default_install_remote_version)"<br>GitHub workflow attempt log archive for run 44700020780 attempt 1 has no logs for job "Windows Test (ansible>=13.0.0, <14.0.0, 2022, default_install_remote_version)"<br>GitHub workflow attempt log archive for run 44700020780 attempt 1 has no logs for job "Linux Test (ansible>=13.0.0, <14.0.0, debian13)"<br>GitHub workflow attempt log archive for run 44700020780 attempt 1 has no logs for job "Linux Test (ansible>=13.0.0, <14.0.0, ubuntu2604)"<br>GitHub workflow attempt log archive for run 44700020780 attempt 1 has no logs for job "Linux Test (ansible>=13.0.0, <14.0.0, centos9)"<br>GitHub workflow attempt log archive for run 44700020780 attempt 1 has no logs for job "Linux Test (ansible>=13.0.0, <14.0.0, ubuntu2404)"<br>GitHub workflow attempt log archive for run 44700020780 attempt 1 has no logs for job "Linux Test (ansible>=13.0.0, <14.0.0, centos10)"<br>GitHub workflow attempt log archive for run 44700020780 attempt 1 has no logs for job "Linux Test (ansible>=13.0.0, <14.0.0, debian12)"<br>GitHub workflow attempt log archive for run 44700020780 attempt 1 has no logs for job "Linux Test (ansible>=13.0.0, <14.0.0, ubuntu2204)"<br>GitHub workflow attempt log archive for run 44700020780 attempt 1 has no logs for job "Linux Test (ansible>=13.0.0, <14.0.0, amazonlinux2023)"<br>GitHub workflow attempt log archive for run 44700020780 attempt 1 has no logs for job "Linux Test (ansible>=13.0.0, <14.0.0, opensuse16)"<br>GitHub workflow attempt log archive for run 44700020780 attempt 1 has no logs for job "Linux Test (ansible>=13.0.0, <14.0.0, oraclelinux10)"<br>GitHub workflow attempt log archive for run 44700020780 attempt 1 has no logs for job "Linux Test (ansible>=13.0.0, <14.0.0, oraclelinux9)"<br>workflow run 44700020780 attempt 1 job "Windows Test (ansible>=13.0.0, <14.0.0, 2019, custom_vars_install_old_version)" step "Run Molecule tests." has no downloadable log
+
+<table>
+<thead>
+<tr><th>Failure</th><th>Classification</th><th>Latest failure</th><th>Main history</th><th>PR commit history</th><th>Related CI history</th></tr>
+</thead>
+<tbody>
+<tr><td>Ansible / Windows Test (ansible&gt;=13.0.0, &lt;14.0.0, 2019, custom_vars_install_old_version) / Run Molecule tests.</td><td>Broken</td><td><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44700020780/job/136173802922">Failure run</a></td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>test github.com/signalfx/splunk-otel-collector/tests/instrumentation.TestExpressInstrumentation/ubuntu-noble/amd64</td><td>Flaky</td><td><pre><code>    instrumentation_test.go:145: 
+        	Error Trace:	/home/runner/work/splunk-otel-collector/splunk-otel-collector/tests/instrumentation/instrumentation_test.go:373
+        	            				/home/runner/work/splunk-otel-collector/splunk-otel-collector/tests/instrumentation/instrumentation_test.go:145
+        	Error:      	Should be true
+        	Test:       	TestExpressInstrumentation/ubuntu-noble/amd64
+        	Messages:   	timed out waiting for &#34;telemetry\\.sdk\\.language&#34;: Str\(nodejs\)</code></pre><br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44700020783/job/136170627145">Failure run</a></td><td>main — last 7 days — 15/15 passed (100%), 0/15 failed (0%); includes 13 inferred passes from successful workflows (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44594002584/job/135814712925">main pass</a></td><td><a href="https://github.com/signalfx/splunk-otel-collector/commit/91394c4002b43068de16e4ee3471e72a75040648">create-pull-request/update-javaagent 91394c4</a> — 1/2 passed (50%), 1/2 failed (50%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44700020783/job/136170627145">create-pull-request/update-javaagent 91394c4 pass</a><br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44700020783/job/136170627145">create-pull-request/update-javaagent 91394c4 failure</a></td><td>auto-instrumentation — main — last 7 days — 13/14 passed (93%), 1/14 failed (7%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44547248610">auto-instrumentation — main pass</a><br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44594002584">auto-instrumentation — main failure</a><br>auto-instrumentation — <a href="https://github.com/signalfx/splunk-otel-collector/commit/91394c4002b43068de16e4ee3471e72a75040648">create-pull-request/update-javaagent 91394c4</a> — 0/1 passed (0%), 1/1 failed (100%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44700020783">create-pull-request/update-javaagent 91394c4 failure</a><br>auto-instrumentation / test-package (ubuntu-noble, amd64, express) — main — last 7 days — 15/15 passed (100%), 0/15 failed (0%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44594002584/job/135814712925">auto-instrumentation / test-package (ubuntu-noble, amd64, express) — main pass</a><br>auto-instrumentation / test-package (ubuntu-noble, amd64, express) — <a href="https://github.com/signalfx/splunk-otel-collector/commit/91394c4002b43068de16e4ee3471e72a75040648">create-pull-request/update-javaagent 91394c4</a> — 1/1 passed (100%), 0/1 failed (0%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44700020783/job/136170627145">create-pull-request/update-javaagent 91394c4 pass</a><br>auto-instrumentation / test-package (ubuntu-noble, amd64, express) / Test deb on ubuntu-noble amd64 — main — last 7 days — 15/15 passed (100%), 0/15 failed (0%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44594002584/job/135814712925">auto-instrumentation / test-package (ubuntu-noble, amd64, express) / Test deb on ubuntu-noble amd64 — main pass</a><br>auto-instrumentation / test-package (ubuntu-noble, amd64, express) / Test deb on ubuntu-noble amd64 — <a href="https://github.com/signalfx/splunk-otel-collector/commit/91394c4002b43068de16e4ee3471e72a75040648">create-pull-request/update-javaagent 91394c4</a> — 1/1 passed (100%), 0/1 failed (0%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44700020783/job/136170627145">create-pull-request/update-javaagent 91394c4 pass</a><br>auto-instrumentation / test-package (ubuntu-noble, amd64, express) / Re-run failed tests — main — last 7 days — 13/13 passed (100%), 0/13 failed (0%); includes 13 inferred passes from successful workflows (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44547248610/job/135649297608">auto-instrumentation / test-package (ubuntu-noble, amd64, express) / Re-run failed tests — main pass</a><br>auto-instrumentation / test-package (ubuntu-noble, amd64, express) / Re-run failed tests — <a href="https://github.com/signalfx/splunk-otel-collector/commit/91394c4002b43068de16e4ee3471e72a75040648">create-pull-request/update-javaagent 91394c4</a> — 1/1 passed (100%), 0/1 failed (0%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44700020783/job/136170627145">create-pull-request/update-javaagent 91394c4 pass</a></td></tr>
+<tr><td>test github.com/signalfx/splunk-otel-collector/tests/instrumentation.TestPackageUpgradeFromLibsplunk/opensuse-15/amd64</td><td>Flaky</td><td><pre><code>2026/11/20 08:24:41 🐳 Building image 5d11aa57-4672-4314-9dff-81898636e885:67105f2b-8f6b-4f82-bec1-543734f96923
+panic: test timed out after 15m0s
+	running tests:
+		TestPackageUpgradeFromLibsplunk (12m35s)
+		TestPackageUpgradeFromLibsplunk/opensuse-15/amd64 (12m35s)</code></pre><br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44700020783/job/136170623052">Failure run</a></td><td>main — last 7 days — 19/19 passed (100%), 0/19 failed (0%); includes 13 inferred passes from successful workflows (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44594002584/job/135814704958">main pass</a></td><td><a href="https://github.com/signalfx/splunk-otel-collector/commit/91394c4002b43068de16e4ee3471e72a75040648">create-pull-request/update-javaagent 91394c4</a> — 2/4 passed (50%), 2/4 failed (50%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44700020783/job/136170623020">create-pull-request/update-javaagent 91394c4 pass</a><br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44700020783/job/136170623052">create-pull-request/update-javaagent 91394c4 failure</a></td><td>auto-instrumentation — main — last 7 days — 13/14 passed (93%), 1/14 failed (7%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44547248610">auto-instrumentation — main pass</a><br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44594002584">auto-instrumentation — main failure</a><br>auto-instrumentation — <a href="https://github.com/signalfx/splunk-otel-collector/commit/91394c4002b43068de16e4ee3471e72a75040648">create-pull-request/update-javaagent 91394c4</a> — 0/1 passed (0%), 1/1 failed (100%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44700020783">create-pull-request/update-javaagent 91394c4 failure</a><br>auto-instrumentation / test-package (opensuse-15, amd64, express) — main — last 7 days — 15/15 passed (100%), 0/15 failed (0%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44594002584/job/135814704958">auto-instrumentation / test-package (opensuse-15, amd64, express) — main pass</a><br>auto-instrumentation / test-package (opensuse-15, amd64, express) — <a href="https://github.com/signalfx/splunk-otel-collector/commit/91394c4002b43068de16e4ee3471e72a75040648">create-pull-request/update-javaagent 91394c4</a> — 0/1 passed (0%), 1/1 failed (100%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44700020783/job/136170623052">create-pull-request/update-javaagent 91394c4 failure</a><br>auto-instrumentation / test-package (opensuse-15, amd64, express) / Test rpm on opensuse-15 amd64 — main — last 7 days — 15/15 passed (100%), 0/15 failed (0%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44594002584/job/135814704958">auto-instrumentation / test-package (opensuse-15, amd64, express) / Test rpm on opensuse-15 amd64 — main pass</a><br>auto-instrumentation / test-package (opensuse-15, amd64, express) / Test rpm on opensuse-15 amd64 — <a href="https://github.com/signalfx/splunk-otel-collector/commit/91394c4002b43068de16e4ee3471e72a75040648">create-pull-request/update-javaagent 91394c4</a> — 1/1 passed (100%), 0/1 failed (0%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44700020783/job/136170623052">create-pull-request/update-javaagent 91394c4 pass</a><br>auto-instrumentation / test-package (opensuse-15, amd64, dotnet) — main — last 7 days — 15/15 passed (100%), 0/15 failed (0%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44594002584/job/135814704988">auto-instrumentation / test-package (opensuse-15, amd64, dotnet) — main pass</a><br>auto-instrumentation / test-package (opensuse-15, amd64, dotnet) — <a href="https://github.com/signalfx/splunk-otel-collector/commit/91394c4002b43068de16e4ee3471e72a75040648">create-pull-request/update-javaagent 91394c4</a> — 1/1 passed (100%), 0/1 failed (0%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44700020783/job/136170623044">create-pull-request/update-javaagent 91394c4 pass</a><br>auto-instrumentation / test-package (opensuse-15, amd64, dotnet) / Test rpm on opensuse-15 amd64 — main — last 7 days — 15/15 passed (100%), 0/15 failed (0%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44594002584/job/135814704988">auto-instrumentation / test-package (opensuse-15, amd64, dotnet) / Test rpm on opensuse-15 amd64 — main pass</a><br>auto-instrumentation / test-package (opensuse-15, amd64, dotnet) / Test rpm on opensuse-15 amd64 — <a href="https://github.com/signalfx/splunk-otel-collector/commit/91394c4002b43068de16e4ee3471e72a75040648">create-pull-request/update-javaagent 91394c4</a> — 1/1 passed (100%), 0/1 failed (0%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44700020783/job/136170623044">create-pull-request/update-javaagent 91394c4 pass</a><br>auto-instrumentation / test-package (opensuse-15, amd64, tomcat) — main — last 7 days — 15/15 passed (100%), 0/15 failed (0%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44594002584/job/135814705129">auto-instrumentation / test-package (opensuse-15, amd64, tomcat) — main pass</a><br>auto-instrumentation / test-package (opensuse-15, amd64, tomcat) — <a href="https://github.com/signalfx/splunk-otel-collector/commit/91394c4002b43068de16e4ee3471e72a75040648">create-pull-request/update-javaagent 91394c4</a> — 1/1 passed (100%), 0/1 failed (0%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44700020783/job/136170623020">create-pull-request/update-javaagent 91394c4 pass</a><br>auto-instrumentation / test-package (opensuse-15, amd64, tomcat) / Test rpm on opensuse-15 amd64 — main — last 7 days — 15/15 passed (100%), 0/15 failed (0%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44594002584/job/135814705129">auto-instrumentation / test-package (opensuse-15, amd64, tomcat) / Test rpm on opensuse-15 amd64 — main pass</a><br>auto-instrumentation / test-package (opensuse-15, amd64, tomcat) / Test rpm on opensuse-15 amd64 — <a href="https://github.com/signalfx/splunk-otel-collector/commit/91394c4002b43068de16e4ee3471e72a75040648">create-pull-request/update-javaagent 91394c4</a> — 1/1 passed (100%), 0/1 failed (0%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44700020783/job/136170623020">create-pull-request/update-javaagent 91394c4 pass</a><br>auto-instrumentation / test-package (opensuse-15, amd64, express) / Re-run failed tests — main — last 7 days — 13/13 passed (100%), 0/13 failed (0%); includes 11 inferred passes from successful workflows (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44547248610/job/135649292057">auto-instrumentation / test-package (opensuse-15, amd64, express) / Re-run failed tests — main pass</a><br>auto-instrumentation / test-package (opensuse-15, amd64, express) / Re-run failed tests — <a href="https://github.com/signalfx/splunk-otel-collector/commit/91394c4002b43068de16e4ee3471e72a75040648">create-pull-request/update-javaagent 91394c4</a> — 0/1 passed (0%), 1/1 failed (100%) (partial)<br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44700020783/job/136170623052">create-pull-request/update-javaagent 91394c4 failure</a></td></tr>
+<tr><td>auto-instrumentation / test-package (opensuse-15, amd64, express) / Re-run failed tests</td><td>Broken<br>Includes inferred workflow passes.</td><td><pre><code>=== RUN   TestPackageUpgradeFromLibsplunk/opensuse-15/amd64
+2026/11/20 08:46:26 🐳 Building image a4cc0ad0-acb7-4c93-b002-f0918444ccdf:6946e3f4-a184-49ea-abb1-539041220c13
+panic: test timed out after 15m0s
+	running tests:
+		TestPackageUpgradeFromLibsplunk (9m5s)
+		TestPackageUpgradeFromLibsplunk/opensuse-15/amd64 (9m5s)</code></pre><br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44700020783/job/136170623052">Failure run</a></td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>changelog / changelog / Validate ./.chloggen/*.yaml changes</td><td>Unknown<br>There is not enough matching history to classify this failure.</td><td><pre><code>2026-11-20T08:09:29.2986623Z chloggen validate
+2026-11-20T08:09:29.3013105Z Error: specify one or more issues #&#39;s
+2026-11-20T08:09:29.3013458Z Usage:
+2026-11-20T08:09:29.3015030Z
+2026-11-20T08:09:29.3015483Z Error: specify one or more issues #&#39;s
+2026-11-20T08:09:29.3016400Z make: *** [Makefile:431: chlog-validate] Error 1
+2026-11-20T08:09:29.3019527Z New ./.chloggen/*.yaml file failed validation.
+2026-11-20T08:09:29.3034801Z ##[error]Process completed with exit code 1.</code></pre><br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44700020553/job/136165858172">Failure run</a></td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>chef-test / chef-kitchen-linux (opensuse-15) / Run chef exec kitchen test opensuse-15</td><td>Unknown<br>There is not enough matching history to classify this failure.</td><td><pre><code>2026-11-20T09:26:54.7044497Z            ================================================================================
+2026-11-20T09:26:54.7044622Z            Error executing action `install` on resource &#39;nodejs_install[nodejs]&#39;
+2026-11-20T09:26:54.7044717Z            ================================================================================
+2026-11-20T09:26:54.7044919Z            --------------------------------
+2026-11-20T09:26:54.7045305Z            zypper_package[tar] (nodejs_test::default line 50) had an error: Mixlib::ShellOut::CommandTimeout: Command timed out after 900s:
+2026-11-20T09:26:54.7045446Z            Command exceeded allowed execution time, process terminated
+2026-11-20T09:26:54.7064292Z        Running handlers:
+2026-11-20T09:26:54.7064402Z        [2026-11-20T09:04:44+00:00] ERROR: Running exception handlers
+2026-11-20T09:26:54.7064467Z        Running handlers complete
+2026-11-20T09:26:54.7064574Z        [2026-11-20T09:04:44+00:00] ERROR: Exception handlers complete
+2026-11-20T09:26:54.7064690Z        Infra Phase failed. 0 resources updated in 15 minutes 36 seconds
+2026-11-20T09:26:54.7064957Z        [2026-11-20T09:04:44+00:00] FATAL: Stacktrace dumped to /opt/kitchen/cache/chef-stacktrace.out
+2026-11-20T09:26:54.7065227Z        [2026-11-20T09:04:44+00:00] FATAL: ---------------------------------------------------------------------------------------
+2026-11-20T09:26:54.7065429Z        [2026-11-20T09:04:44+00:00] FATAL: PLEASE PROVIDE THE CONTENTS OF THE stacktrace.out FILE (above) IF YOU FILE A BUG REPORT
+2026-11-20T09:26:54.7065594Z        [2026-11-20T09:04:44+00:00] FATAL: ---------------------------------------------------------------------------------------
+2026-11-20T09:26:54.7066094Z        [2026-11-20T09:04:44+00:00] FATAL: Mixlib::ShellOut::CommandTimeout: nodejs_install[nodejs] (nodejs_test::default line 3) had an error: Mixlib::ShellOut::CommandTimeout: zypper_package[tar] (nodejs_test::default line 50) had an error: Mixlib::ShellOut::CommandTimeout: Command timed out after 900s:
+2026-11-20T09:26:54.7066207Z        Command exceeded allowed execution time, process terminated
+2026-11-20T09:26:54.7196747Z            ================================================================================
+2026-11-20T09:26:54.7196884Z            Error executing action `install` on resource &#39;zypper_package[libcap-progs]&#39;
+2026-11-20T09:26:54.7196981Z            ================================================================================
+2026-11-20T09:26:54.7206532Z        Running handlers:
+2026-11-20T09:26:54.7206641Z        [2026-11-20T09:23:34+00:00] ERROR: Running exception handlers
+2026-11-20T09:26:54.7206707Z        Running handlers complete
+2026-11-20T09:26:54.7206815Z        [2026-11-20T09:23:34+00:00] ERROR: Exception handlers complete
+2026-11-20T09:26:54.7206930Z        Infra Phase failed. 0 resources updated in 15 minutes 34 seconds
+2026-11-20T09:26:54.7207085Z        [2026-11-20T09:23:34+00:00] FATAL: Stacktrace dumped to /opt/kitchen/cache/chef-stacktrace.out
+2026-11-20T09:26:54.7207262Z        [2026-11-20T09:23:34+00:00] FATAL: ---------------------------------------------------------------------------------------
+2026-11-20T09:26:54.7207466Z        [2026-11-20T09:23:34+00:00] FATAL: PLEASE PROVIDE THE CONTENTS OF THE stacktrace.out FILE (above) IF YOU FILE A BUG REPORT
+2026-11-20T09:26:54.7207634Z        [2026-11-20T09:23:34+00:00] FATAL: ---------------------------------------------------------------------------------------
+2026-11-20T09:26:54.7208005Z        [2026-11-20T09:23:34+00:00] FATAL: Mixlib::ShellOut::CommandTimeout: zypper_package[libcap-progs] (splunk_otel_collector::default line 71) had an error: Mixlib::ShellOut::CommandTimeout: Command timed out after 900s:
+2026-11-20T09:26:54.7208118Z        Command exceeded allowed execution time, process terminated
+2026-11-20T09:26:54.7354357Z 	from /usr/bin/chef:459:in `&lt;main&gt;&#39;
+2026-11-20T09:26:54.7356876Z ##[error]Process completed with exit code 1.</code></pre><br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44700020881/job/136172956826">Failure run</a></td><td>—</td><td>—</td><td>—</td></tr>
+</tbody>
+</table>
+
 
 <a id="pr-8458"></a>
 ### [Update splunk-otel-js to latest (#8458)](https://github.com/signalfx/splunk-otel-collector/pull/8458)
@@ -104,15 +179,33 @@ make: *** [Makefile:246: install-tools] Error 1</code></pre><br><a href="https:/
 ### [Bump github.com/gobwas/glob from 0.2.4-0.20181002190808-e7a84e9525fe to 1.1.0 in /internal/signalfx-agent (#8442)](https://github.com/signalfx/splunk-otel-collector/pull/8442)
 
 Partial — the report is incomplete; findings use only available observations.
-- Could not parse a failed workflow: could not parse workflow run 43659653477 attempt 1: could not read logs for workflow run 43659653477 attempt 1: could not read GitHub workflow attempt log archive for run 43659653477 attempt 1: net/http: request canceled (Client.Timeout or context cancellation while reading body)<br>workflow run 43659653477 attempt 1 job "ptp-receiver-integration-test" step "Run PTP receiver integration test" has no downloadable log<br>workflow run 43659653477 attempt 1 job "otelcol (amd64)" step "Run make binaries-linux_amd64 COVER_TESTING=true" has no downloadable log
 
 <table>
 <thead>
 <tr><th>Failure</th><th>Classification</th><th>Latest failure</th><th>Main history</th><th>PR commit history</th><th>Related CI history</th></tr>
 </thead>
 <tbody>
-<tr><td>Integration Test / otelcol (amd64) / Run make binaries-linux_amd64 COVER_TESTING=true</td><td>Broken</td><td><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/43659653477/job/132645878537">Failure run</a></td><td>—</td><td>—</td><td>—</td></tr>
-<tr><td>Integration Test / ptp-receiver-integration-test / Run PTP receiver integration test</td><td>Broken</td><td><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/43659653477/job/132645878373">Failure run</a></td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Integration Test / package github.com/signalfx/splunk-otel-collector/internal/receiver/ptpreceiver</td><td>Broken<br>Includes inferred workflow passes.</td><td><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/43659653477/job/132645878373">Failure run</a></td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Integration Test / package github.com/signalfx/splunk-otel-collector/internal/receiver/ptpreceiver/internal/metadata</td><td>Broken<br>Includes inferred workflow passes.</td><td><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/43659653477/job/132645878373">Failure run</a></td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Integration Test / otelcol (amd64) / Run make binaries-linux_amd64 COVER_TESTING=true</td><td>Broken</td><td><pre><code>2026-11-15T00:47:24.0645761Z # go.opentelemetry.io/collector/confmap/internal
+2026-11-15T00:47:24.0677386Z ##[error]../../../go/pkg/mod/go.opentelemetry.io/collector/confmap@v1.71.0/internal/merge.go:25:19: undefined: glob.Glob
+2026-11-15T00:47:24.0688185Z ##[error]../../../go/pkg/mod/go.opentelemetry.io/collector/confmap@v1.71.0/internal/merge.go:63:39: undefined: glob.Glob
+2026-11-15T00:47:27.1923493Z # github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/ottlfuncs
+2026-11-15T00:47:27.1949848Z ##[error]../../../go/pkg/mod/github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl@v1.4.1/ottlfuncs/func_replace_all_matches.go:47:27: undefined: glob.Glob
+2026-11-15T00:47:27.1978604Z ##[error]../../../go/pkg/mod/github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl@v1.4.1/ottlfuncs/func_replace_match.go:46:27: undefined: glob.Glob
+2026-11-15T00:48:25.5769276Z # github.com/open-telemetry/opentelemetry-collector-contrib/exporter/signalfxexporter/internal/translation/dpfilters
+2026-11-15T00:48:25.5815004Z ##[error]../../../go/pkg/mod/github.com/open-telemetry/opentelemetry-collector-contrib/exporter/signalfxexporter@v0.165.1/internal/translation/dpfilters/matching.go:55:15: undefined: glob.Glob
+2026-11-15T00:51:13.3806003Z # github.com/signalfx/signalfx-agent/pkg/utils/filter
+2026-11-15T00:51:13.3886318Z ##[error]internal/signalfx-agent/pkg/utils/filter/matching.go:65:15: undefined: glob.Glob
+2026-11-15T00:51:20.7002461Z make[1]: *** [Makefile:266: otelcol] Error 1
+2026-11-15T00:51:20.7002974Z make[1]: Leaving directory &#39;/home/runner/work/splunk-otel-collector/splunk-otel-collector&#39;
+2026-11-15T00:51:20.7005834Z make: *** [Makefile:344: binaries-linux_amd64] Error 2
+2026-11-15T00:51:20.7031218Z ##[error]Process completed with exit code 2.</code></pre><br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/43659653477/job/132645878537">Failure run</a></td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Integration Test / ptp-receiver-integration-test / Run PTP receiver integration test</td><td>Broken</td><td><pre><code>2026-11-15T00:45:02.4042988Z /go/pkg/mod/go.opentelemetry.io/collector/confmap@v1.71.0/internal/merge.go:63:39: undefined: glob.Glob
+2026-11-15T00:45:14.4602179Z FAIL	github.com/signalfx/splunk-otel-collector/internal/receiver/ptpreceiver [build failed]
+2026-11-15T00:45:14.5424783Z FAIL	github.com/signalfx/splunk-otel-collector/internal/receiver/ptpreceiver/internal/metadata [build failed]
+2026-11-15T00:45:14.5425382Z FAIL
+2026-11-15T00:45:16.1014400Z ##[error]Process completed with exit code 1.</code></pre><br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/43659653477/job/132645878373">Failure run</a></td><td>—</td><td>—</td><td>—</td></tr>
 <tr><td>auto-instrumentation / cross-compile (binaries-linux_amd64) / compile / Build Collector</td><td>Broken</td><td><pre><code>2026-11-15T00:49:18.3216907Z fatal: No names found, cannot describe anything.
 2026-11-15T00:49:18.3231876Z fatal: No names found, cannot describe anything.
 2026-11-15T00:49:18.3273770Z go generate ./...
@@ -770,105 +863,6 @@ Partial — the report is incomplete; findings use only available observations.
 <tr><td>windows-test / windows-test (windows-2022) / Unit tests with coverage</td><td>Broken</td><td><pre><code>2026-11-17T16:01:32.0660149Z go: go.mod requires go &gt;= 1.27.1 (running go 1.26.11; GOTOOLCHAIN=local)
 2026-11-17T16:01:32.1390787Z ##[error]Process completed with exit code 1.
 2026-11-17T16:01:32.1555079Z Post job cleanup.</code></pre><br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/44120955164/job/134171830664">Failure run</a></td><td>—</td><td>—</td><td>—</td></tr>
-</tbody>
-</table>
-
-
-<a id="pr-8076"></a>
-### [Bump ruby from 3.3.8-bookworm to 4.0.0-bookworm in /deployments/puppet (#8076)](https://github.com/signalfx/splunk-otel-collector/pull/8076)
-
-Partial — the report is incomplete; findings use only available observations.
-
-<table>
-<thead>
-<tr><th>Failure</th><th>Classification</th><th>Latest failure</th><th>Main history</th><th>PR commit history</th><th>Related CI history</th></tr>
-</thead>
-<tbody>
-<tr><td>puppet-test / puppet-lint / Lint</td><td>Unknown<br>There is not enough matching history to classify this failure.</td><td><pre><code>2026-11-13T18:03:39.1544758Z 	splunk-otel-connector-puppet-dev \
-2026-11-13T18:03:39.1545207Z 	puppet-lint --fail-on-warnings \
-2026-11-13T18:03:39.1545748Z 	--no-parameter_documentation-check --no-parameter_types-check \
-2026-11-13T18:03:39.1546826Z 	.
-2026-11-13T18:03:39.5386438Z Whoops! It looks like puppet-lint has encountered an error that it doesn&#39;t
-2026-11-13T18:03:39.5387455Z know how to handle. Please open an issue at https://github.com/puppetlabs/puppet-lint
-2026-11-13T18:03:39.5404899Z ```
-2026-11-13T18:03:39.5405172Z error:
-2026-11-13T18:03:39.5405458Z ```
-2026-11-13T18:03:39.5418537Z ```
-2026-11-13T18:03:39.6241176Z make: *** [Makefile:18: lint] Error 1
-2026-11-13T18:03:39.6242327Z make: Leaving directory &#39;/home/runner/work/splunk-otel-collector/splunk-otel-collector/deployments/puppet&#39;
-2026-11-13T18:03:39.6263144Z ##[error]Process completed with exit code 2.</code></pre><br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/43478614779/job/132068953553">Failure run</a></td><td>—</td><td>—</td><td>—</td></tr>
-<tr><td>puppet-test / puppet-rake-spec / Lint</td><td>Unknown<br>There is not enough matching history to classify this failure.</td><td><pre><code>2026-11-13T18:03:41.2387402Z
-2026-11-13T18:03:41.2387853Z An error occurred while loading ./spec/classes/init_spec.rb.
-2026-11-13T18:03:41.2388265Z Failure/Error: require &#39;puppetlabs_spec_helper/module_spec_helper&#39;
-2026-11-13T18:03:41.2388687Z
-2026-11-13T18:03:41.2397820Z Finished in 0.00004 seconds (files took 0.18007 seconds to load)
-2026-11-13T18:03:41.2398140Z 0 examples, 0 failures, 1 error occurred outside of examples
-2026-11-13T18:03:41.2398335Z
-2026-11-13T18:03:41.2439257Z /usr/local/bin/ruby -I/usr/local/bundle/gems/rspec-support-3.13.1/lib:/usr/local/bundle/gems/rspec-core-3.13.2/lib /usr/local/bundle/gems/rspec-core-3.13.2/exe/rspec --pattern spec/\{aliases,classes,defines,functions,hosts,integration,plans,tasks,type_aliases,types,unit\}/\*\*/\*_spec.rb failed
-2026-11-13T18:03:41.4245912Z make: *** [Makefile:28: rake-spec] Error 1
-2026-11-13T18:03:41.4246651Z make: Leaving directory &#39;/home/runner/work/splunk-otel-collector/splunk-otel-collector/deployments/puppet&#39;
-2026-11-13T18:03:41.4263119Z ##[error]Process completed with exit code 2.</code></pre><br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/43478614779/job/132068953658">Failure run</a></td><td>—</td><td>—</td><td>—</td></tr>
-</tbody>
-</table>
-
-
-<a id="pr-7879"></a>
-### [Bump actionshub/chef-install from 5.0.2 to 6.0.0 (#7879)](https://github.com/signalfx/splunk-otel-collector/pull/7879)
-
-Partial — the report is incomplete; findings use only available observations.
-
-<table>
-<thead>
-<tr><th>Failure</th><th>Classification</th><th>Latest failure</th><th>Main history</th><th>PR commit history</th><th>Related CI history</th></tr>
-</thead>
-<tbody>
-<tr><td>chef-test / chef-kitchen-windows (windows-2022, custom-vars) / Install chef</td><td>Unknown<br>There is not enough matching history to classify this failure.</td><td><pre><code>2026-11-13T18:19:12.6033675Z [31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mInstaller download redirected to an unexpected URL: [0m
-2026-11-13T18:19:12.6469467Z ##[error]Process completed with exit code 1.
-2026-11-13T18:19:12.6477033Z ##[end-action id=__actionshub_chef-install.__run_2;outcome=failure;conclusion=failure;duration_ms=1221]
-2026-11-13T18:19:12.6611955Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9</code></pre><br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/43478662580/job/132078472445">Failure run</a></td><td>—</td><td>—</td><td>—</td></tr>
-<tr><td>chef-test / chef-kitchen-windows (windows-2022, default) / Install chef</td><td>Unknown<br>There is not enough matching history to classify this failure.</td><td><pre><code>2026-11-13T18:19:19.1000222Z [31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mInstaller download redirected to an unexpected URL: [0m
-2026-11-13T18:19:19.1521525Z ##[error]Process completed with exit code 1.
-2026-11-13T18:19:19.1530034Z ##[end-action id=__actionshub_chef-install.__run_2;outcome=failure;conclusion=failure;duration_ms=1288]
-2026-11-13T18:19:19.1700517Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9</code></pre><br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/43478662580/job/132078472258">Failure run</a></td><td>—</td><td>—</td><td>—</td></tr>
-<tr><td>chef-test / chef-kitchen-windows (windows-2022, platform-logs) / Install chef</td><td>Unknown<br>There is not enough matching history to classify this failure.</td><td><pre><code>2026-11-13T18:19:34.2892189Z [31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mInstaller download redirected to an unexpected URL: [0m
-2026-11-13T18:19:34.3426025Z ##[error]Process completed with exit code 1.
-2026-11-13T18:19:34.3434983Z ##[end-action id=__actionshub_chef-install.__run_2;outcome=failure;conclusion=failure;duration_ms=1908]
-2026-11-13T18:19:34.3612292Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9</code></pre><br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/43478662580/job/132078472184">Failure run</a></td><td>—</td><td>—</td><td>—</td></tr>
-<tr><td>chef-test / chef-kitchen-windows (windows-2022, platform-logs-with-observability) / Install chef</td><td>Unknown<br>There is not enough matching history to classify this failure.</td><td><pre><code>2026-11-13T18:19:37.6334922Z [31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mInstaller download redirected to an unexpected URL: [0m
-2026-11-13T18:19:37.6813198Z ##[error]Process completed with exit code 1.
-2026-11-13T18:19:37.6821049Z ##[end-action id=__actionshub_chef-install.__run_2;outcome=failure;conclusion=failure;duration_ms=946]
-2026-11-13T18:19:37.6967584Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9</code></pre><br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/43478662580/job/132078472235">Failure run</a></td><td>—</td><td>—</td><td>—</td></tr>
-<tr><td>chef-test / chef-kitchen-windows (windows-2025, custom-vars) / Install chef</td><td>Unknown<br>There is not enough matching history to classify this failure.</td><td><pre><code>2026-11-13T18:19:10.0256032Z [36;1m  if ($statusCode) {[0m
-2026-11-13T18:19:10.0256349Z [36;1m    $message = &#34;Failed to download installer from $scriptUrl (HTTP $statusCode).&#34;[0m
-2026-11-13T18:19:10.0256678Z [36;1m  } else {[0m
-2026-11-13T18:19:10.0256992Z [36;1m    $message = &#34;Failed to download installer from $scriptUrl.&#34;[0m
-2026-11-13T18:19:10.0257274Z [36;1m  }[0m
-2026-11-13T18:19:10.0259485Z [36;1mif ($response.StatusCode -ne 200) {[0m
-2026-11-13T18:19:10.0271537Z [36;1m  $message = &#34;Failed to download installer from $scriptUrl (HTTP $($response.StatusCode)).&#34;[0m
-2026-11-13T18:19:10.0271867Z [36;1m  if ($env:LICENSE) {[0m
-2026-11-13T18:19:10.9407213Z [31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mInstaller download redirected to an unexpected URL: [0m
-2026-11-13T18:19:10.9901628Z ##[error]Process completed with exit code 1.
-2026-11-13T18:19:10.9908729Z ##[end-action id=__actionshub_chef-install.__run_2;outcome=failure;conclusion=failure;duration_ms=975]</code></pre><br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/43478662580/job/132078472197">Failure run</a></td><td>—</td><td>—</td><td>—</td></tr>
-<tr><td>chef-test / chef-kitchen-windows (windows-2025, default) / Install chef</td><td>Unknown<br>There is not enough matching history to classify this failure.</td><td><pre><code>2026-11-13T18:19:21.0053346Z [31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mInstaller download redirected to an unexpected URL: [0m
-2026-11-13T18:19:21.0594670Z ##[error]Process completed with exit code 1.
-2026-11-13T18:19:21.0602443Z ##[end-action id=__actionshub_chef-install.__run_2;outcome=failure;conclusion=failure;duration_ms=1426]
-2026-11-13T18:19:21.0763509Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9</code></pre><br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/43478662580/job/132078472201">Failure run</a></td><td>—</td><td>—</td><td>—</td></tr>
-<tr><td>chef-test / chef-kitchen-windows (windows-2025, platform-logs) / Install chef</td><td>Unknown<br>There is not enough matching history to classify this failure.</td><td><pre><code>2026-11-13T18:19:25.0108647Z [36;1m  if ($statusCode) {[0m
-2026-11-13T18:19:25.0109062Z [36;1m    $message = &#34;Failed to download installer from $scriptUrl (HTTP $statusCode).&#34;[0m
-2026-11-13T18:19:25.0109494Z [36;1m  } else {[0m
-2026-11-13T18:19:25.0109830Z [36;1m    $message = &#34;Failed to download installer from $scriptUrl.&#34;[0m
-2026-11-13T18:19:25.0110332Z [36;1m  }[0m
-2026-11-13T18:19:25.0114257Z [36;1mif ($response.StatusCode -ne 200) {[0m
-2026-11-13T18:19:25.0128162Z [36;1m  $message = &#34;Failed to download installer from $scriptUrl (HTTP $($response.StatusCode)).&#34;[0m
-2026-11-13T18:19:25.0128773Z [36;1m  if ($env:LICENSE) {[0m
-2026-11-13T18:19:26.2473050Z [31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mInstaller download redirected to an unexpected URL: [0m
-2026-11-13T18:19:26.3175102Z ##[error]Process completed with exit code 1.
-2026-11-13T18:19:26.3185550Z ##[end-action id=__actionshub_chef-install.__run_2;outcome=failure;conclusion=failure;duration_ms=1324]
-2026-11-13T18:19:26.3409039Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9</code></pre><br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/43478662580/job/132078472310">Failure run</a></td><td>—</td><td>—</td><td>—</td></tr>
-<tr><td>chef-test / chef-kitchen-windows (windows-2025, platform-logs-with-observability) / Install chef</td><td>Unknown<br>There is not enough matching history to classify this failure.</td><td><pre><code>2026-11-13T18:19:19.5535252Z [31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mInstaller download redirected to an unexpected URL: [0m
-2026-11-13T18:19:19.6046896Z ##[error]Process completed with exit code 1.
-2026-11-13T18:19:19.6055782Z ##[end-action id=__actionshub_chef-install.__run_2;outcome=failure;conclusion=failure;duration_ms=1092]
-2026-11-13T18:19:19.6239201Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9</code></pre><br><a href="https://github.com/signalfx/splunk-otel-collector/actions/runs/43478662580/job/132078472309">Failure run</a></td><td>—</td><td>—</td><td>—</td></tr>
 </tbody>
 </table>
 

@@ -12,7 +12,7 @@ The analyzer consumes a provider-neutral workflow interface that supplies reposi
 jobs, and step logs. Providers use the
 shared workflow records in `internal/common`; the GitHub adapter maps its native API records into them. The analyzer
 collects workflow run attempts, job and step conclusions, and test results within the configured lookback, then merges
-them into the local report. It passes `failingTestCheck.jsonReport.lookback` to the analyzer; it defaults to `7d` and
+them into the local report. It passes `flaky-test-analysis.lookback` to the analyzer; it defaults to `7d` and
 accepts positive duration values such as `30m`, `12h`, and `7d`. Collection or parsing errors mark the report
 incomplete. By default, a report that covers the requested window is reused and attempts
 marked complete are skipped; incomplete attempts are retried. Reports without coverage metadata or that do not cover
@@ -39,7 +39,7 @@ run analysis or update it.
 - Allow multiple analyzer instances to run in parallel. This is a future requirement; the initial implementation does
   not need to account for concurrent analyzer execution.
 
-The config may set `failingTestCheck.jsonReport.lookback` to bound historical evidence; it defaults to `7d` and accepts
+The config may set `flaky-test-analysis.lookback` to bound historical evidence; it defaults to `7d` and accepts
 positive Go duration values such as `30m` and `12h`, plus `d` for days. If the configured lookback extends beyond
 available provider log retention, analyze available logs and mark the report incomplete rather than silently shortening
 the window. For a failed PR run, the analyzer parses Go test output and compares identified failures with

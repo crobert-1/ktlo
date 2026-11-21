@@ -12,18 +12,18 @@ Place configuration loading and validation in `internal/config`. The default con
 contains shared repository definitions and reusable defaults, not command enablement switches.
 
 Each repository entry is an object containing a required `url`, optional `enabled` (default `true`), and optional
-`localPath`. URL-only entries fail config validation. Disabled entries are excluded from all commands. Vulnerability
-Check uses `localPath` to scan the existing checkout as-is without changing repository files or Git metadata. Every
+`local-path`. URL-only entries fail config validation. Disabled entries are excluded from all commands. Vulnerability
+Check uses `local-path` to scan the existing checkout as-is without changing repository files or Git metadata. Every
 command requires at least one enabled repository.
 
-`prStatus.dependencyUpdateAuthors` defaults to the configured dependency bot logins when omitted. `prStatus.staleAge`
+`dependency-pr-status.update.dependency-update-authors` defaults to the configured dependency bot logins when omitted. `dependency-pr-status.update.stale-age`
 defaults to `7d`, and the `dependency-pr-status update --stale-age` option can override it for one run. The flaky-test
 JSON report lookback defaults to `7d`; `flaky-test-analysis --lookback` can override it for one run. The
 `--overwrite` option forces a full report rebuild. Targeted workflow parsing is enabled by default for dependency PR
 status; `--no-parse-workflow-failures` disables it for one run. These invocation controls are not stored as config
 fields.
 
-`otelGoInstrumentation.enabled` defaults to false. When enabled, non-empty `OTEL_EXPORTER_OTLP_ENDPOINT`,
+`telemetry.enabled` defaults to false. When enabled, non-empty `OTEL_EXPORTER_OTLP_ENDPOINT`,
 `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`, and their matching `*_INSECURE` values
 are applied to the corresponding process environment variables before telemetry setup; omitted or empty values leave
 existing environment values intact. The exporters use gRPC directly, so no protocol selector is needed. Unknown YAML
@@ -32,9 +32,9 @@ keys are errors.
 The config API owns parsing and reusable defaults:
 
 ```go
-func (c PRStatusConfig) EffectiveStaleAge() (time.Duration, error)
-func (c PRStatusConfig) EffectiveDependencyUpdateAuthors() []string
-func (c FailingTestJSONReportConfig) EffectiveLookback() (time.Duration, error)
+func (c DependencyPRStatusUpdateConfig) EffectiveStaleAge() (time.Duration, error)
+func (c DependencyPRStatusUpdateConfig) EffectiveDependencyUpdateAuthors() []string
+func (c FlakyTestAnalysisConfig) EffectiveLookback() (time.Duration, error)
 func (c Config) EnabledRepositories() []RepositoryConfig
 func (c Config) EffectiveLogLevel() logging.Level
 func (c Config) Validate() error

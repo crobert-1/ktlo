@@ -11,47 +11,50 @@ The default config path is `config.yaml`. Override it with `--config FILE` or `-
 after the command. The example configuration is:
 
 ```yaml
-logLevel: default
+log-level: default
 
-otelGoInstrumentation:
+telemetry:
   enabled: false
-  OTEL_EXPORTER_OTLP_ENDPOINT: ""
-  OTEL_EXPORTER_OTLP_INSECURE: ""
-  OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: ""
-  OTEL_EXPORTER_OTLP_METRICS_INSECURE: ""
-  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ""
-  OTEL_EXPORTER_OTLP_TRACES_INSECURE: ""
+  otlp:
+    endpoint: ""
+    insecure: ""
+    metrics:
+      endpoint: ""
+      insecure: ""
+    traces:
+      endpoint: ""
+      insecure: ""
 
-prStatus:
-  dependencyUpdateAuthors:
-    - dependabot
-    - renovate
-    - srv-gh-o11y-gdi
-  staleAge: 7d
+dependency-pr-status:
+  update:
+    dependency-update-authors:
+      - dependabot
+      - renovate
+      - srv-gh-o11y-gdi
+    stale-age: 7d
 
-failingTestCheck:
-  jsonReport:
-    lookback: 7d
+flaky-test-analysis:
+  lookback: 7d
 
 repositories:
   - url: https://github.com/owner/repository
     enabled: true
-    # localPath: /Users/name/dev/repository
+    # local-path: /Users/name/dev/repository
 ```
 
 The config stores the progress log level, shared repositories, PR status author filters and default stale threshold,
 flaky-test lookback, and optional OpenTelemetry settings. Repository entries require `url`; `enabled` defaults to
-`true`, and `localPath` is optional. At least one repository must be enabled for a command. Unknown YAML fields are
+`true`, and `local-path` is optional. At least one repository must be enabled for a command. Unknown YAML fields are
 errors.
 
-`logLevel` defaults to `default` and accepts `none`, `default`, or `detailed`, case-insensitively. `none` suppresses
+`log-level` defaults to `default` and accepts `none`, `default`, or `detailed`, case-insensitively. `none` suppresses
 progress and runtime messages while errors and telemetry setup or shutdown failures remain visible. `default` reports
 command and repository progress and preserves the existing vulnerability scan progress. `detailed` also reports
 workflow collection and PR status operation stages.
 
-`prStatus.dependencyUpdateAuthors` defaults to `dependabot`, `renovate`, and `srv-gh-o11y-gdi` when omitted.
-`prStatus.staleAge` defaults to `7d`; `--stale-age` overrides it for one dependency PR status run.
-`failingTestCheck.jsonReport.lookback` defaults to `7d`; `--lookback` overrides it for one flaky-test analysis run.
+`dependency-pr-status.update.dependency-update-authors` defaults to `dependabot`, `renovate`, and `srv-gh-o11y-gdi` when omitted.
+`dependency-pr-status.update.stale-age` defaults to `7d`; `--stale-age` overrides it for one dependency PR status run.
+`flaky-test-analysis.lookback` defaults to `7d`; `--lookback` overrides it for one flaky-test analysis run.
 Both settings accept positive Go durations such as `30m`, `12h`, and `7d`.
 
 ## CLI contract
@@ -114,12 +117,11 @@ remain on standard output.
 
 ## Runtime instrumentation
 
-OpenTelemetry traces and duration metrics are disabled by default. Set `otelGoInstrumentation.enabled` to `true` to
-enable them. The `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, and
-`OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` YAML keys map to the matching environment variables consumed by the Go
-OpenTelemetry SDK. `OTEL_EXPORTER_OTLP_INSECURE`, `OTEL_EXPORTER_OTLP_TRACES_INSECURE`, and
-`OTEL_EXPORTER_OTLP_METRICS_INSECURE` configure plaintext gRPC connections. The common endpoint and insecure values
-apply to both signals; signal-specific values override them. A configured non-empty value overrides the process
+OpenTelemetry traces and duration metrics are disabled by default. Set `telemetry.enabled` to `true` to
+enable them. `telemetry.otlp.endpoint` and `telemetry.otlp.insecure` configure both signals;
+`telemetry.otlp.traces` and `telemetry.otlp.metrics` override these values per signal. These fields map to the matching
+environment variables consumed by the Go OpenTelemetry SDK. The endpoint and insecure settings configure gRPC
+connections. A configured non-empty value overrides the process
 environment, and an omitted or empty value leaves an existing process environment value unchanged. The gRPC exporters
 are selected directly by the application, so `OTEL_EXPORTER_OTLP_PROTOCOL` does not need to be configured. Export
 setup or shutdown failures are written to standard error without changing the check's exit code. The CLI flushes

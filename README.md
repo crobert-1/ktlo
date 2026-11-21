@@ -81,21 +81,24 @@ Vulnerability checks, flaky-test analysis, and dependency PR status require a to
 ## Runtime instrumentation
 
 Tracing and duration metrics are opt-in. To export both signals to an OTLP gRPC collector, set
-`otelGoInstrumentation.enabled` to `true` in the YAML configuration. Set `OTEL_EXPORTER_OTLP_ENDPOINT` to configure
-both signals, or use `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` and `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` to configure
-traces and metrics separately. These YAML keys map to the corresponding environment variables used by the Go OpenTelemetry
-SDK. Use the matching `*_INSECURE` keys for plaintext gRPC collectors. Configured values override matching process
+`telemetry.enabled` to `true` in the YAML configuration. Set `telemetry.otlp.endpoint` to configure both signals, or
+use `telemetry.otlp.traces.endpoint` and `telemetry.otlp.metrics.endpoint` to configure traces and metrics separately.
+These YAML values map to the corresponding environment variables used by the Go OpenTelemetry SDK. Set the matching
+`insecure` values for plaintext gRPC collectors. Configured values override matching process
 environment variables; omitted values preserve them. For a local plaintext gRPC collector, use this configuration:
 
 ```yaml
-logLevel: default
+log-level: default
 
-otelGoInstrumentation:
+telemetry:
   enabled: true
-  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: dns://localhost:4317
-  OTEL_EXPORTER_OTLP_TRACES_INSECURE: "true"
-  OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: dns://localhost:4317
-  OTEL_EXPORTER_OTLP_INSECURE: "true"
+  otlp:
+    traces:
+      endpoint: dns://localhost:4317
+      insecure: "true"
+    metrics:
+      endpoint: dns://localhost:4317
+      insecure: "true"
 ```
 
 Traces include spans for CLI stages, GitHub API methods and HTTP requests, workflow attempt log archive collection and parsing, and
@@ -112,34 +115,37 @@ configurations without at least one enabled repository fail validation.
 
 ### Options
 
-- `otelGoInstrumentation` (optional; default: disabled): Configures OpenTelemetry export.
-  - `enabled` (optional; default: `false`): Enables tracing and duration metrics.
-  - `OTEL_EXPORTER_OTLP_ENDPOINT` (optional; default: unset): Base OTLP gRPC endpoint for traces and metrics.
-  - `OTEL_EXPORTER_OTLP_INSECURE` (optional; default: unset): Configures insecure transport for the base endpoint.
-  - `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` (optional; default: unset): Overrides the base endpoint for metrics.
-  - `OTEL_EXPORTER_OTLP_METRICS_INSECURE` (optional; default: unset): Configures insecure transport for the metrics endpoint.
-  - `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` (optional; default: unset): Overrides the base endpoint for traces.
-  - `OTEL_EXPORTER_OTLP_TRACES_INSECURE` (optional; default: unset): Configures insecure transport for the traces endpoint.
-  - Empty or omitted exporter values leave corresponding process environment variables unchanged; non-empty configured
-    values override them.
-- `prStatus` (optional): Configures Dependency PR Status.
-  - `dependencyUpdateAuthors` (optional; default: `dependabot`, `renovate`, `srv-gh-o11y-gdi`): GitHub author logins
-    used to identify dependency-update PRs.
-  - `staleAge` (optional; default: `7d`): Marks PRs whose latest commit is older than this duration as stale. Accepts
-    positive durations such as `60m`, `12h`, and `7d`; `--stale-age` overrides it for one run.
-- `failingTestCheck` (optional): Configures flaky-test analysis.
-  - `jsonReport` (optional): Configures the stored workflow test report.
-    - `lookback` (optional; default: `7d`): How far back to search for workflow runs. Accepts positive durations such
-      as `30m`, `12h`, and `7d`; `--lookback` overrides it for one run.
-- `logLevel` (optional; default: `default`): Controls progress output written to standard error. `none` suppresses
+- `log-level` (optional; default: `default`): Controls progress output written to standard error. `none` suppresses
   progress messages, `default` shows command and repository progress, and `detailed` also shows operation-stage updates.
   Errors remain visible at every level.
+- `telemetry` (optional; default: disabled): Configures OpenTelemetry export.
+  - `enabled` (optional; default: `false`): Enables tracing and duration metrics.
+  - `otlp` (optional): Configures OTLP gRPC endpoints.
+    - `endpoint` (optional; default: unset): Base endpoint for traces and metrics.
+    - `insecure` (optional; default: unset): Plaintext transport setting for the base endpoint.
+    - `metrics` (optional): Overrides the base endpoint for metrics.
+      - `endpoint` (optional; default: unset): Metrics endpoint.
+      - `insecure` (optional; default: unset): Plaintext transport setting for the metrics endpoint.
+    - `traces` (optional): Overrides the base endpoint for traces.
+      - `endpoint` (optional; default: unset): Traces endpoint.
+      - `insecure` (optional; default: unset): Plaintext transport setting for the traces endpoint.
+  - Empty or omitted exporter values leave corresponding process environment variables unchanged; non-empty configured
+    values override them.
+- `dependency-pr-status` (optional): Configures Dependency PR Status.
+  - `update` (optional): Configures the `dependency-pr-status update` command.
+    - `dependency-update-authors` (optional; default: `dependabot`, `renovate`, `srv-gh-o11y-gdi`): GitHub author logins
+    used to identify dependency-update PRs.
+    - `stale-age` (optional; default: `7d`): Marks PRs whose latest commit is older than this duration as stale. Accepts
+    positive durations such as `60m`, `12h`, and `7d`; `--stale-age` overrides it for one run.
+- `flaky-test-analysis` (optional): Configures the flaky-test analysis command.
+  - `lookback` (optional; default: `7d`): How far back to search for workflow runs. Accepts positive durations such
+    as `30m`, `12h`, and `7d`; `--lookback` overrides it for one run.
 - `repositories` (required; no default): Repositories checked by commands. Supply at least one entry and enable at least
   one repository.
   - Each entry is an object with these options:
     - `url` (required; no default): GitHub repository URL.
     - `enabled` (optional; default: `true`): Whether checks include this repository.
-    - `localPath` (optional; no default): Path to an existing local checkout for Vulnerability Check. Its `origin` must
+    - `local-path` (optional; no default): Path to an existing local checkout for Vulnerability Check. Its `origin` must
       match `url`. KTLO scans the working tree as-is without fetching, switching branches, or modifying files or Git
       metadata. Uncommitted changes may be included while links point to the checkout's current `HEAD`. Relative paths
       are resolved from the process working directory.
@@ -149,32 +155,35 @@ configurations without at least one enabled repository fail validation.
 See [config.example.yaml](config.example.yaml) for a complete example:
 
 ```yaml
-logLevel: default
+log-level: default
 
-otelGoInstrumentation:
+telemetry:
   enabled: false
-  OTEL_EXPORTER_OTLP_ENDPOINT: ""
-  OTEL_EXPORTER_OTLP_INSECURE: ""
-  OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: ""
-  OTEL_EXPORTER_OTLP_METRICS_INSECURE: ""
-  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ""
-  OTEL_EXPORTER_OTLP_TRACES_INSECURE: ""
+  otlp:
+    endpoint: ""
+    insecure: ""
+    metrics:
+      endpoint: ""
+      insecure: ""
+    traces:
+      endpoint: ""
+      insecure: ""
 
-prStatus:
-  dependencyUpdateAuthors:
-    - dependabot
-    - renovate
-    - srv-gh-o11y-gdi
-  staleAge: 7d
+dependency-pr-status:
+  update:
+    dependency-update-authors:
+      - dependabot
+      - renovate
+      - srv-gh-o11y-gdi
+    stale-age: 7d
 
-failingTestCheck:
-  jsonReport:
-    lookback: 7d
+flaky-test-analysis:
+  lookback: 7d
 
 repositories:
   - url: https://github.com/owner/repository
     enabled: true
-    # localPath: /Users/name/dev/repository
+    # local-path: /Users/name/dev/repository
 ```
 
 Commands operate on all enabled repositories unless the config disables an entry. `--config` may appear before or after

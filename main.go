@@ -268,7 +268,7 @@ func run(args []string, stdout io.Writer, stderr io.Writer) (exitCode int) {
 		}
 	}()
 
-	shutdownTelemetry, telemetryErr := telemetry.Setup(rootContext, loadedConfig.OTelGoInstrumentation)
+	shutdownTelemetry, telemetryErr := telemetry.Setup(rootContext, loadedConfig.Telemetry)
 	if telemetryErr != nil {
 		_, _ = fmt.Fprintf(stderr, errorTelemetrySetup+lineEnding, telemetryErr)
 	}
@@ -305,7 +305,7 @@ func (invocation cliInvocation) requiresGitHubToken() bool {
 
 func validateCommandConfig(invocation cliInvocation, loadedConfig config.Config) error {
 	if invocation.command == commandFlakyTestAnalysis {
-		failingTestConfig := loadedConfig.FailingTestCheck.JSONReport
+		failingTestConfig := loadedConfig.FlakyTestAnalysis
 		if invocation.lookback != emptyString {
 			failingTestConfig.Lookback = &invocation.lookback
 			if _, err := failingTestConfig.EffectiveLookback(); err != nil {
@@ -314,7 +314,7 @@ func validateCommandConfig(invocation cliInvocation, loadedConfig config.Config)
 		}
 	}
 	if invocation.command == commandDependencyPRStatus && invocation.staleAge != emptyString {
-		prStatusConfig := loadedConfig.PRStatus
+		prStatusConfig := loadedConfig.DependencyPRStatus.Update
 		prStatusConfig.StaleAge = &invocation.staleAge
 		if _, err := prStatusConfig.EffectiveStaleAge(); err != nil {
 			return fmt.Errorf(errorInvalidStaleAgeOverride, err)
@@ -566,7 +566,7 @@ func runRepositoryCommand(ctx context.Context, repositoryConfig config.Repositor
 
 	switch invocation.command {
 	case commandFlakyTestAnalysis:
-		failingTestConfig := loadedConfig.FailingTestCheck.JSONReport
+		failingTestConfig := loadedConfig.FlakyTestAnalysis
 		if invocation.lookback != emptyString {
 			failingTestConfig.Lookback = &invocation.lookback
 		}
@@ -574,11 +574,11 @@ func runRepositoryCommand(ctx context.Context, repositoryConfig config.Repositor
 	case commandGenerateReport:
 		resultErr = runFailingTestReadme(ctx, repository, stdout)
 	case commandDependencyPRStatus:
-		prStatusConfig := loadedConfig.PRStatus
+		prStatusConfig := loadedConfig.DependencyPRStatus.Update
 		if invocation.staleAge != emptyString {
 			prStatusConfig.StaleAge = &invocation.staleAge
 		}
-		resultErr = runPRStatus(ctx, githubClient, prStatusConfig, loadedConfig.FailingTestCheck.JSONReport, invocation.parseWorkflowFailures, stdout, logger)
+		resultErr = runPRStatus(ctx, githubClient, prStatusConfig, loadedConfig.FlakyTestAnalysis, invocation.parseWorkflowFailures, stdout, logger)
 	default:
 		return fmt.Errorf(errorUnknownCommand, invocation.command)
 	}
@@ -685,7 +685,7 @@ func runVulnerabilityCheck(ctx context.Context, loadedConfig config.Config, vuln
 	return nil
 }
 
-func runPRStatus(ctx context.Context, githubClient *github.Client, prStatusConfig config.PRStatusConfig, failingTestConfig config.FailingTestJSONReportConfig, parseWorkflowFailures bool, stdout io.Writer, logger *logging.Logger) error {
+func runPRStatus(ctx context.Context, githubClient *github.Client, prStatusConfig config.DependencyPRStatusUpdateConfig, failingTestConfig config.FlakyTestAnalysisConfig, parseWorkflowFailures bool, stdout io.Writer, logger *logging.Logger) error {
 	lookback, err := failingTestConfig.EffectiveLookback()
 	if err != nil {
 		return err

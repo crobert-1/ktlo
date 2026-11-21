@@ -36,9 +36,9 @@ const (
 	errorRepositoryEntryType     = "repository entry must be an object"
 	errorLegacyRepositoryEntry   = "repository number %d uses the obsolete URL-only format; use an object with a url field"
 	errorRepositoryUnknownField  = "repository entry has unknown field %q"
-	errorInvalidLookback         = "failingTestCheck.jsonReport.lookback must be a positive duration, such as 30m, 12h, or 7d"
-	errorInvalidLogLevel         = "logLevel must be none, default, or detailed"
-	errorInvalidPRStatusStaleAge = "prStatus.staleAge must be a positive duration, such as 60m, 12h, or 7d"
+	errorInvalidLookback         = "flaky-test-analysis.lookback must be a positive duration, such as 30m, 12h, or 7d"
+	errorInvalidLogLevel         = "log-level must be none, default, or detailed"
+	errorInvalidPRStatusStaleAge = "dependency-pr-status.update.stale-age must be a positive duration, such as 60m, 12h, or 7d"
 	errorLoadConfig              = "could not load config file %q: %w"
 	errorMultipleDocuments       = "config file %q must contain a single YAML document"
 )
@@ -52,18 +52,18 @@ const defaultDependencyUpdateAuthorRenovate = "renovate"
 const defaultDependencyUpdateAuthorSrvGHODiGDI = "srv-gh-o11y-gdi"
 
 type Config struct {
-	FailingTestCheck      FailingTestCheckConfig      `yaml:"failingTestCheck"`
-	LogLevel              logging.Level               `yaml:"logLevel,omitempty"`
-	OTelGoInstrumentation OTelGoInstrumentationConfig `yaml:"otelGoInstrumentation"`
-	PRStatus              PRStatusConfig              `yaml:"prStatus"`
-	Repositories          []RepositoryConfig          `yaml:"repositories"`
+	DependencyPRStatus DependencyPRStatusConfig `yaml:"dependency-pr-status"`
+	FlakyTestAnalysis  FlakyTestAnalysisConfig  `yaml:"flaky-test-analysis"`
+	LogLevel           logging.Level            `yaml:"log-level,omitempty"`
+	Repositories       []RepositoryConfig       `yaml:"repositories"`
+	Telemetry          TelemetryConfig          `yaml:"telemetry"`
 }
 
 type RepositoryConfig struct {
 	Enabled   bool   `yaml:"enabled"`
-	LocalPath string `yaml:"localPath,omitempty"`
+	LocalPath string `yaml:"local-path,omitempty"`
 	URL       string `yaml:"url"`
-	legacyURL bool
+	legacyURL bool   `yaml:"-"`
 }
 
 func (repository *RepositoryConfig) UnmarshalYAML(node *yaml.Node) error {
@@ -84,7 +84,7 @@ func (repository *RepositoryConfig) UnmarshalYAML(node *yaml.Node) error {
 	}
 	var decoded struct {
 		Enabled   *bool  `yaml:"enabled"`
-		LocalPath string `yaml:"localPath"`
+		LocalPath string `yaml:"local-path"`
 		URL       string `yaml:"url"`
 	}
 	if err := node.Decode(&decoded); err != nil {
@@ -96,27 +96,34 @@ func (repository *RepositoryConfig) UnmarshalYAML(node *yaml.Node) error {
 	return nil
 }
 
-type OTelGoInstrumentationConfig struct {
-	Enabled                         bool   `yaml:"enabled"`
-	OTELExporterOTLPEndpoint        string `yaml:"OTEL_EXPORTER_OTLP_ENDPOINT,omitempty"`
-	OTELExporterOTLPInsecure        string `yaml:"OTEL_EXPORTER_OTLP_INSECURE,omitempty"`
-	OTELExporterOTLPMetricsEndpoint string `yaml:"OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,omitempty"`
-	OTELExporterOTLPMetricsInsecure string `yaml:"OTEL_EXPORTER_OTLP_METRICS_INSECURE,omitempty"`
-	OTELExporterOTLPTracesEndpoint  string `yaml:"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,omitempty"`
-	OTELExporterOTLPTracesInsecure  string `yaml:"OTEL_EXPORTER_OTLP_TRACES_INSECURE,omitempty"`
+type TelemetryConfig struct {
+	Enabled bool       `yaml:"enabled"`
+	OTLP    OTLPConfig `yaml:"otlp"`
 }
 
-type FailingTestCheckConfig struct {
-	JSONReport FailingTestJSONReportConfig `yaml:"jsonReport"`
+type OTLPConfig struct {
+	Endpoint string                `yaml:"endpoint,omitempty"`
+	Insecure string                `yaml:"insecure,omitempty"`
+	Metrics  TelemetrySignalConfig `yaml:"metrics"`
+	Traces   TelemetrySignalConfig `yaml:"traces"`
 }
 
-type FailingTestJSONReportConfig struct {
+type TelemetrySignalConfig struct {
+	Endpoint string `yaml:"endpoint,omitempty"`
+	Insecure string `yaml:"insecure,omitempty"`
+}
+
+type DependencyPRStatusConfig struct {
+	Update DependencyPRStatusUpdateConfig `yaml:"update"`
+}
+
+type DependencyPRStatusUpdateConfig struct {
+	DependencyUpdateAuthors []string `yaml:"dependency-update-authors,omitempty"`
+	StaleAge                *string  `yaml:"stale-age,omitempty"`
+}
+
+type FlakyTestAnalysisConfig struct {
 	Lookback *string `yaml:"lookback,omitempty"`
-}
-
-type PRStatusConfig struct {
-	DependencyUpdateAuthors []string `yaml:"dependencyUpdateAuthors,omitempty"`
-	StaleAge                *string  `yaml:"staleAge,omitempty"`
 }
 
 func Load(path string) (Config, error) {
@@ -147,7 +154,7 @@ func Load(path string) (Config, error) {
 	return config, nil
 }
 
-func (c PRStatusConfig) EffectiveStaleAge() (time.Duration, error) {
+func (c DependencyPRStatusUpdateConfig) EffectiveStaleAge() (time.Duration, error) {
 	staleAge := defaultPRStatusStaleAge
 	if c.StaleAge != nil {
 		staleAge = *c.StaleAge
@@ -155,7 +162,7 @@ func (c PRStatusConfig) EffectiveStaleAge() (time.Duration, error) {
 	return parsePositiveDuration(staleAge, errorInvalidPRStatusStaleAge)
 }
 
-func (c PRStatusConfig) EffectiveDependencyUpdateAuthors() []string {
+func (c DependencyPRStatusUpdateConfig) EffectiveDependencyUpdateAuthors() []string {
 	if c.DependencyUpdateAuthors != nil {
 		return append([]string(nil), c.DependencyUpdateAuthors...)
 	}
@@ -166,7 +173,7 @@ func (c PRStatusConfig) EffectiveDependencyUpdateAuthors() []string {
 	}
 }
 
-func (c FailingTestJSONReportConfig) EffectiveLookback() (time.Duration, error) {
+func (c FlakyTestAnalysisConfig) EffectiveLookback() (time.Duration, error) {
 	lookback := defaultLookback
 	if c.Lookback != nil {
 		lookback = *c.Lookback
@@ -195,10 +202,10 @@ func (c Config) Validate() error {
 	if c.LogLevel != "" && !c.LogLevel.IsValid() {
 		return errors.New(errorInvalidLogLevel)
 	}
-	if _, err := c.FailingTestCheck.JSONReport.EffectiveLookback(); err != nil {
+	if _, err := c.FlakyTestAnalysis.EffectiveLookback(); err != nil {
 		return err
 	}
-	if _, err := c.PRStatus.EffectiveStaleAge(); err != nil {
+	if _, err := c.DependencyPRStatus.Update.EffectiveStaleAge(); err != nil {
 		return err
 	}
 	for index, repository := range c.Repositories {
@@ -226,7 +233,7 @@ func (c Config) Validate() error {
 
 const (
 	repositoryEnabledKey   = "enabled"
-	repositoryLocalPathKey = "localPath"
+	repositoryLocalPathKey = "local-path"
 	repositoryURLKey       = "url"
 	yamlStringTag          = "!!str"
 )

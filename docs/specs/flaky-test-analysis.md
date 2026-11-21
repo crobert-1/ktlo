@@ -11,7 +11,7 @@ stage. The first implementation targets GitHub; the report layout and contract s
 The analyzer's lookback window does not need to exceed the log retention period configured by GitHub or GitLab. The
 analyzer should use only evidence available within that window. Missing history or incomplete analysis must be
 represented as insufficient data, not as evidence that a failure is non-flaky. The window is set by
-`failingTestCheck.jsonReport.lookback`, which defaults to `7d` and accepts positive Go duration values such as `30m` and `12h`,
+`flaky-test-analysis.lookback`, which defaults to `7d` and accepts positive Go duration values such as `30m` and `12h`,
 plus `d` for days. The effective lookback must stay within the provider's
 log retention period. If the configured window extends beyond available provider log retention, analyze the available
 logs and mark the repository report incomplete rather than silently shortening the window. If some relevant logs cannot

@@ -1,26 +1,29 @@
-logLevel: default
+log-level: default
 
-otelGoInstrumentation:
+telemetry:
   enabled: false
-  OTEL_EXPORTER_OTLP_ENDPOINT: ""
-  OTEL_EXPORTER_OTLP_INSECURE: ""
-  OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: ""
-  OTEL_EXPORTER_OTLP_METRICS_INSECURE: ""
-  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ""
-  OTEL_EXPORTER_OTLP_TRACES_INSECURE: ""
+  otlp:
+    endpoint: ""
+    insecure: ""
+    metrics:
+      endpoint: ""
+      insecure: ""
+    traces:
+      endpoint: ""
+      insecure: ""
 
-prStatus:
-  dependencyUpdateAuthors:
-    - dependabot
-    - renovate
-    - srv-gh-o11y-gdi
-  staleAge: 7d
+dependency-pr-status:
+  update:
+    dependency-update-authors:
+      - dependabot
+      - renovate
+      - srv-gh-o11y-gdi
+    stale-age: 7d
 
-failingTestCheck:
-  jsonReport:
-    lookback: 7d
+flaky-test-analysis:
+  lookback: 7d
 
 repositories:
   - url: https://github.com/owner/repository
     enabled: true
-    # localPath: /Users/name/dev/repository
+    # local-path: /Users/name/dev/repository

@@ -20,7 +20,7 @@ approval-to-run are not yet queried. PR Status reads the existing local flaky-an
 available; it does not update that report. The `--parse-workflow-failures` option parses only failed GitHub Actions runs
 linked from failed CI contexts and merges those observations into an in-memory
 report for matching. This targeted parsing uses the normal workflow/job/step/test builder and configured log parsers,
-respects `failingTestCheck.jsonReport.lookback`, and never writes `workflow-test-analysis.json`. The report format is
+respects `flaky-test-analysis.lookback`, and never writes `workflow-test-analysis.json`. The report format is
 described in [flaky-test-analysis.md](flaky-test-analysis.md). Client initialization also performs a repository
 availability probe.
 
@@ -56,7 +56,7 @@ When matching GitHub author logins, ignore a trailing `[bot]` suffix.
 
 #### Implementation
 
-The script checks for open PRs from the author logins in `prStatus.dependencyUpdateAuthors` in the target repository.
+The script checks for open PRs from the author logins in `dependency-pr-status.update.dependency-update-authors` in the target repository.
 This list defaults to `dependabot`, `renovate`, and `srv-gh-o11y-gdi`. The GitHub
 GraphQL repository pull request connection does not filter by author, so the query fetches open PRs and the client
 filters the results against this list. It includes both draft and ready-for-review PRs, including each PR's current
@@ -111,7 +111,7 @@ statuses described below remain future work. The intended check will:
     precedence over all other CI groups, including `Failed`, when other checks have already failed.
   - `Failed`: PRs with at least one CI context in `FAILURE` or `ERROR` and no pending checks.
   - `Others`: PRs with cancelled, expected, unknown, or unavailable CI results that are not pending.
-  - `Stale`: PRs whose latest commit is older than the configured `prStatus.staleAge`; this group has only author and
+  - `Stale`: PRs whose latest commit is older than the configured `dependency-pr-status.update.stale-age`; this group has only author and
     pull-request columns, and stale PRs are omitted from the other tables and failure details.
 - Derive the displayed CI status from the individual contexts rather than relying only on GitHub's aggregate rollup.
   Treat `SKIPPED` as a successful outcome. Treat `CANCELLED` as unresolved, not as a failure or pass. Add the
@@ -145,7 +145,7 @@ conflicts with complete context results, use the context-derived state, except a
 failures for table placement. A successful CI status alone does not mean the PR is ready to merge because
 approval status is not yet queried.
 
-The `prStatus.staleAge` setting defaults to `7d` and accepts positive durations such as `60m`, `12h`, or `7d`.
+The `dependency-pr-status.update.stale-age` setting defaults to `7d` and accepts positive durations such as `60m`, `12h`, or `7d`.
 `dependency-pr-status update --stale-age` overrides this setting for one run. Place an open PR in `Stale` when its
 latest commit's `committedDate` is older than the current time minus this duration. Do
 not fetch CI results or show failure details for stale PRs. If the latest commit timestamp is unavailable, classify

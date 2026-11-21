@@ -29,7 +29,7 @@ import (
 	"ktlo/internal/testresults"
 )
 
-func runFailingTestJSONReport(ctx context.Context, githubClient *github.Client, failingTestConfig config.FailingTestJSONReportConfig, overwriteExistingReport bool, logger *logging.Logger) (resultErr error) {
+func runFailingTestJSONReport(ctx context.Context, githubClient *github.Client, failingTestConfig config.FlakyTestAnalysisConfig, overwriteExistingReport bool, logger *logging.Logger) (resultErr error) {
 	startedAt := time.Now()
 	ctx, span := telemetry.StartSpan(ctx, instrumentationName, spanFailingTestCheck)
 	defer func() {

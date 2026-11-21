@@ -15,9 +15,85 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
+
+const newConfigSchema = `log-level: detailed
+telemetry:
+  enabled: true
+  otlp:
+    endpoint: https://collector.example
+    metrics:
+      insecure: "true"
+dependency-pr-status:
+  update:
+    dependency-update-authors: [dependabot]
+    stale-age: 12h
+flaky-test-analysis:
+  lookback: 30m
+repositories:
+  - url: https://github.com/owner/repository
+    local-path: /tmp/repository
+`
+
+const obsoleteConfigSchema = `logLevel: detailed
+repositories:
+  - url: https://github.com/owner/repository
+`
+)
+
+func TestLoadConfigSchema(t *testing.T) {
+	tests := []struct {
+		name      string
+		contents  string
+		expectErr bool
+	}{
+		{
+			name:     "command-aligned YAML keys",
+			contents: newConfigSchema,
+		},
+		{
+			name:      "obsolete YAML keys",
+			contents:  obsoleteConfigSchema,
+			expectErr: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			configPath := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(configPath, []byte(test.contents), 0o600); err != nil {
+				t.Fatalf("os.WriteFile() error = %v", err)
+			}
+
+			actual, err := Load(configPath)
+			if (err != nil) != test.expectErr {
+				t.Fatalf("Load() error = %v, want error %t", err, test.expectErr)
+			}
+			if err != nil {
+				return
+			}
+			if actual.LogLevel != "detailed" {
+				t.Errorf("LogLevel = %q, want detailed", actual.LogLevel)
+			}
+			if actual.Telemetry.OTLP.Endpoint != "https://collector.example" {
+				t.Errorf("Telemetry.OTLP.Endpoint = %q, want configured endpoint", actual.Telemetry.OTLP.Endpoint)
+			}
+			if actual.DependencyPRStatus.Update.StaleAge == nil || *actual.DependencyPRStatus.Update.StaleAge != "12h" {
+				t.Errorf("DependencyPRStatus.Update.StaleAge = %v, want 12h", actual.DependencyPRStatus.Update.StaleAge)
+			}
+			if actual.FlakyTestAnalysis.Lookback == nil || *actual.FlakyTestAnalysis.Lookback != "30m" {
+				t.Errorf("FlakyTestAnalysis.Lookback = %v, want 30m", actual.FlakyTestAnalysis.Lookback)
+			}
+			if actual.Repositories[0].LocalPath != "/tmp/repository" {
+				t.Errorf("Repositories[0].LocalPath = %q, want configured local path", actual.Repositories[0].LocalPath)
+			}
+		})
+	}
+}
 
 func TestParseLookbackDuration(t *testing.T) {
 	tests := []struct {
