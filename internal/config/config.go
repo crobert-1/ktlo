@@ -22,6 +22,8 @@ import (
 	"strings"
 	"time"
 
+	"ktlo/internal/logging"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -35,6 +37,7 @@ const (
 	errorLegacyRepositoryEntry   = "repository number %d uses the obsolete URL-only format; use an object with a url field"
 	errorRepositoryUnknownField  = "repository entry has unknown field %q"
 	errorInvalidLookback         = "failingTestCheck.jsonReport.lookback must be a positive duration, such as 30m, 12h, or 7d"
+	errorInvalidLogLevel         = "logLevel must be none, default, or detailed"
 	errorInvalidPRStatusStaleAge = "prStatus.staleAge must be a positive duration, such as 60m, 12h, or 7d"
 	errorLoadConfig              = "could not load config file %q: %w"
 	errorMultipleDocuments       = "config file %q must contain a single YAML document"
@@ -50,6 +53,7 @@ const defaultDependencyUpdateAuthorSrvGHODiGDI = "srv-gh-o11y-gdi"
 
 type Config struct {
 	FailingTestCheck      FailingTestCheckConfig      `yaml:"failingTestCheck"`
+	LogLevel              logging.Level               `yaml:"logLevel,omitempty"`
 	OTelGoInstrumentation OTelGoInstrumentationConfig `yaml:"otelGoInstrumentation"`
 	PRStatus              PRStatusConfig              `yaml:"prStatus"`
 	Repositories          []RepositoryConfig          `yaml:"repositories"`
@@ -170,6 +174,13 @@ func (c FailingTestJSONReportConfig) EffectiveLookback() (time.Duration, error) 
 	return parseLookbackDuration(lookback)
 }
 
+func (c Config) EffectiveLogLevel() logging.Level {
+	if c.LogLevel == "" {
+		return logging.LevelDefault
+	}
+	return c.LogLevel
+}
+
 func (c Config) EnabledRepositories() []RepositoryConfig {
 	repositories := make([]RepositoryConfig, 0, len(c.Repositories))
 	for _, repository := range c.Repositories {
@@ -181,6 +192,9 @@ func (c Config) EnabledRepositories() []RepositoryConfig {
 }
 
 func (c Config) Validate() error {
+	if c.LogLevel != "" && !c.LogLevel.IsValid() {
+		return errors.New(errorInvalidLogLevel)
+	}
 	if _, err := c.FailingTestCheck.JSONReport.EffectiveLookback(); err != nil {
 		return err
 	}

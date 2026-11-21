@@ -36,6 +36,7 @@ func (c PRStatusConfig) EffectiveStaleAge() (time.Duration, error)
 func (c PRStatusConfig) EffectiveDependencyUpdateAuthors() []string
 func (c FailingTestJSONReportConfig) EffectiveLookback() (time.Duration, error)
 func (c Config) EnabledRepositories() []RepositoryConfig
+func (c Config) EffectiveLogLevel() logging.Level
 func (c Config) Validate() error
 ```
 

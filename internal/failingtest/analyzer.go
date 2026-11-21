@@ -17,7 +17,6 @@ package failingtest
 import (
 	"context"
 	"errors"
-	"io"
 	"os"
 	"time"
 
@@ -51,18 +50,18 @@ const traceAttributeKnownWorkflowRunAttemptCount = "ktlo.workflow_run_attempt.kn
 
 type Analyzer struct {
 	overwriteExistingReport bool
-	progressWriter          io.Writer
+	logger                  *logging.Logger
 	workflowProvider        WorkflowProvider
 	lookbackDuration        time.Duration
 	testLogParsers          []TestLogParser
 }
 
-func (analyzer *Analyzer) SetProgressWriter(writer io.Writer) {
-	analyzer.progressWriter = writer
+func (analyzer *Analyzer) SetLogger(logger *logging.Logger) {
+	analyzer.logger = logger
 }
 
 func (analyzer *Analyzer) progressf(format string, arguments ...any) {
-	logging.Progressf(analyzer.progressWriter, logging.PrefixFlakyTestAnalysis, format, arguments...)
+	analyzer.logger.Detailedf(format, arguments...)
 }
 
 // NewAnalyzer uses the package's default parser set unless parsers are supplied.

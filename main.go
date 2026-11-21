@@ -252,8 +252,9 @@ func run(args []string, stdout io.Writer, stderr io.Writer) (exitCode int) {
 
 	rootContext := context.Background()
 	startedAt := time.Now()
+	logger := logging.New(stderr, commandLogPrefix(invocation.command), loadedConfig.EffectiveLogLevel())
 	defer func() {
-		_, _ = fmt.Fprintf(stderr, messageRunDuration+lineEnding, formatRunDuration(time.Since(startedAt)))
+		logger.Progressf(messageRunDuration, formatRunDuration(time.Since(startedAt)))
 	}()
 
 	shutdownTelemetry, telemetryErr := telemetry.Setup(rootContext, loadedConfig.OTelGoInstrumentation)
@@ -453,22 +454,22 @@ func parseDependencyPRStatusOptions(args []string, invocation *cliInvocation) er
 func runCommand(ctx context.Context, invocation cliInvocation, loadedConfig config.Config, token string, stdout io.Writer, stderr io.Writer) (exitCode int) {
 	startedAt := time.Now()
 	enabledRepositories := loadedConfig.EnabledRepositories()
-	commandPrefix := commandLogPrefix(invocation.command)
-	logging.Progressf(stderr, commandPrefix, "Starting %s for %d enabled repository/repositories.", invocation.command, len(enabledRepositories))
+	logger := logging.New(stderr, commandLogPrefix(invocation.command), loadedConfig.EffectiveLogLevel())
+	logger.Progressf("Starting %s for %d enabled repository/repositories.", invocation.command, len(enabledRepositories))
 	defer func() {
 		if exitCode == 0 {
-			logging.Progressf(stderr, commandPrefix, "Completed %s successfully.", invocation.command)
+			logger.Progressf("Completed %s successfully.", invocation.command)
 			return
 		}
-		logging.Progressf(stderr, commandPrefix, "%s finished with exit code %d.", invocation.command, exitCode)
+		logger.Progressf("%s finished with exit code %d.", invocation.command, exitCode)
 	}()
 	ctx, span := telemetry.StartSpan(ctx, instrumentationName, spanRunChecks, attribute.Int(traceAttributeRepositoryCount, len(enabledRepositories)))
 	defer func() {
 		telemetry.FinishSpan(ctx, span, spanRunChecks, startedAt, exitCode != 0)
 	}()
 	if invocation.command == commandVulnerabilityCheck {
-		if err := runVulnerabilityCheck(ctx, loadedConfig, invocation.vulnerabilityID, token, stdout, stderr); err != nil {
-			logging.Progressf(stderr, commandPrefix, "Command failed: %v", err)
+		if err := runVulnerabilityCheck(ctx, loadedConfig, invocation.vulnerabilityID, token, stdout, logger); err != nil {
+			logger.Progressf("Command failed: %v", err)
 			_, _ = fmt.Fprintf(stderr, errorVulnerabilityCheck+lineEnding, err)
 			if errors.Is(err, github.ErrInvalidRepositoryURL) {
 				return exitCodeUsage
@@ -479,8 +480,8 @@ func runCommand(ctx context.Context, invocation cliInvocation, loadedConfig conf
 	}
 
 	for _, repository := range enabledRepositories {
-		if err := runRepositoryCommand(ctx, repository, invocation, loadedConfig, token, stdout, stderr); err != nil {
-			logging.Progressf(stderr, commandPrefix, "Repository %q failed: %v", repository.URL, err)
+		if err := runRepositoryCommand(ctx, repository, invocation, loadedConfig, token, stdout, logger); err != nil {
+			logger.Progressf("Repository %q failed: %v", repository.URL, err)
 			_, _ = fmt.Fprintf(stderr, errorRepositoryFailure+lineEnding, repository.URL, err)
 			if errors.Is(err, github.ErrInvalidRepositoryURL) {
 				return exitCodeUsage
@@ -491,7 +492,7 @@ func runCommand(ctx context.Context, invocation cliInvocation, loadedConfig conf
 	return exitCode
 }
 
-func runRepositoryCommand(ctx context.Context, repositoryConfig config.RepositoryConfig, invocation cliInvocation, loadedConfig config.Config, token string, stdout io.Writer, stderr io.Writer) (resultErr error) {
+func runRepositoryCommand(ctx context.Context, repositoryConfig config.RepositoryConfig, invocation cliInvocation, loadedConfig config.Config, token string, stdout io.Writer, logger *logging.Logger) (resultErr error) {
 	startedAt := time.Now()
 	ctx, span := telemetry.StartSpan(ctx, instrumentationName, spanRepository)
 	defer func() {
@@ -512,7 +513,7 @@ func runRepositoryCommand(ctx context.Context, repositoryConfig config.Repositor
 	if err != nil {
 		return err
 	}
-	logging.Progressf(stderr, commandLogPrefix(invocation.command), "Starting repository %s/%s.", repository.Owner, repository.Name)
+	logger.Progressf("Starting repository %s/%s.", repository.Owner, repository.Name)
 	span.SetAttributes(
 		attribute.String(traceAttributeRepositoryName, repository.Name),
 		attribute.String(traceAttributeRepositoryOwner, repository.Owner),
@@ -524,7 +525,7 @@ func runRepositoryCommand(ctx context.Context, repositoryConfig config.Repositor
 		if invocation.lookback != emptyString {
 			failingTestConfig.Lookback = &invocation.lookback
 		}
-		resultErr = runFailingTestJSONReport(ctx, githubClient, failingTestConfig, invocation.overwrite, stderr)
+		resultErr = runFailingTestJSONReport(ctx, githubClient, failingTestConfig, invocation.overwrite, logger)
 	case commandGenerateReport:
 		resultErr = runFailingTestReadme(ctx, repository, stdout)
 	case commandDependencyPRStatus:
@@ -532,12 +533,12 @@ func runRepositoryCommand(ctx context.Context, repositoryConfig config.Repositor
 		if invocation.staleAge != emptyString {
 			prStatusConfig.StaleAge = &invocation.staleAge
 		}
-		resultErr = runPRStatus(ctx, githubClient, prStatusConfig, loadedConfig.FailingTestCheck.JSONReport, invocation.parseWorkflowFailures, stdout, stderr)
+		resultErr = runPRStatus(ctx, githubClient, prStatusConfig, loadedConfig.FailingTestCheck.JSONReport, invocation.parseWorkflowFailures, stdout, logger)
 	default:
 		return fmt.Errorf(errorUnknownCommand, invocation.command)
 	}
 	if resultErr == nil {
-		logging.Progressf(stderr, commandLogPrefix(invocation.command), "Finished repository %s/%s.", repository.Owner, repository.Name)
+		logger.Progressf("Finished repository %s/%s.", repository.Owner, repository.Name)
 	}
 	return resultErr
 }
@@ -580,7 +581,7 @@ func formatDurationPart(value int64, unit string) string {
 	return fmt.Sprintf(pluralDurationPart, value, unit, pluralSuffix)
 }
 
-func runVulnerabilityCheck(ctx context.Context, loadedConfig config.Config, vulnerabilityID string, token string, stdout io.Writer, stderr io.Writer) error {
+func runVulnerabilityCheck(ctx context.Context, loadedConfig config.Config, vulnerabilityID string, token string, stdout io.Writer, logger *logging.Logger) error {
 	enabledRepositories := loadedConfig.EnabledRepositories()
 	repositories := make([]common.Repository, 0, len(enabledRepositories))
 	for _, repositoryConfig := range enabledRepositories {
@@ -595,26 +596,26 @@ func runVulnerabilityCheck(ctx context.Context, loadedConfig config.Config, vuln
 	if err != nil {
 		return err
 	}
-	analyzer.SetProgressWriter(stderr)
+	analyzer.SetLogger(logger)
 	report, err := analyzer.Analyze(ctx, vulnerabilityID, repositories)
 	if err != nil {
 		return err
 	}
-	logging.Progressf(stderr, logging.PrefixVulnerability, messageVulnerabilityReportStart)
+	logger.Progressf(messageVulnerabilityReportStart)
 	reportPaths, err := output.WriteVulnerabilityReportFiles(report)
 	if err != nil {
 		return err
 	}
 	for _, reportPath := range reportPaths {
-		logging.Progressf(stderr, logging.PrefixVulnerability, messageVulnerabilityReportPath, reportPath)
+		logger.Progressf(messageVulnerabilityReportPath, reportPath)
 	}
 	if err := output.WriteVulnerabilitySummary(report, stdout); err != nil {
 		return err
 	}
-	logging.Progressf(stderr, logging.PrefixVulnerability, messageVulnerabilityReportDone)
+	logger.Progressf(messageVulnerabilityReportDone)
 	for _, repository := range report.Repositories {
 		for _, failure := range repository.Failures {
-			logging.Progressf(stderr, logging.PrefixVulnerability, messageVulnerabilityRepositoryFailure, repository.Repository.Owner, repository.Repository.Name, failure.Operation, failure.Message)
+			logger.Progressf(messageVulnerabilityRepositoryFailure, repository.Repository.Owner, repository.Repository.Name, failure.Operation, failure.Message)
 		}
 	}
 	if report.HasFailures() {
@@ -623,7 +624,7 @@ func runVulnerabilityCheck(ctx context.Context, loadedConfig config.Config, vuln
 	return nil
 }
 
-func runPRStatus(ctx context.Context, githubClient *github.Client, prStatusConfig config.PRStatusConfig, failingTestConfig config.FailingTestJSONReportConfig, parseWorkflowFailures bool, stdout io.Writer, stderr io.Writer) error {
+func runPRStatus(ctx context.Context, githubClient *github.Client, prStatusConfig config.PRStatusConfig, failingTestConfig config.FailingTestJSONReportConfig, parseWorkflowFailures bool, stdout io.Writer, logger *logging.Logger) error {
 	lookback, err := failingTestConfig.EffectiveLookback()
 	if err != nil {
 		return err
@@ -636,6 +637,6 @@ func runPRStatus(ctx context.Context, githubClient *github.Client, prStatusConfi
 	if err != nil {
 		return err
 	}
-	runner.SetProgressWriter(stderr)
+	runner.SetLogger(logger)
 	return runner.Run(ctx, stdout)
 }

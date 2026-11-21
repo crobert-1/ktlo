@@ -87,6 +87,8 @@ SDK. Use the matching `*_INSECURE` keys for plaintext gRPC collectors. Configure
 environment variables; omitted values preserve them. For a local plaintext gRPC collector, use this configuration:
 
 ```yaml
+logLevel: default
+
 otelGoInstrumentation:
   enabled: true
   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: dns://localhost:4317
@@ -128,6 +130,9 @@ configurations without at least one enabled repository fail validation.
   - `jsonReport` (optional): Configures the stored workflow test report.
     - `lookback` (optional; default: `7d`): How far back to search for workflow runs. Accepts positive durations such
       as `30m`, `12h`, and `7d`; `--lookback` overrides it for one run.
+- `logLevel` (optional; default: `default`): Controls progress output written to standard error. `none` suppresses
+  progress messages, `default` shows command and repository progress, and `detailed` also shows operation-stage updates.
+  Errors remain visible at every level.
 - `repositories` (required; no default): Repositories checked by commands. Supply at least one entry and enable at least
   one repository.
   - Each entry is an object with these options:
@@ -143,6 +148,8 @@ configurations without at least one enabled repository fail validation.
 See [config.example.yaml](config.example.yaml) for a complete example:
 
 ```yaml
+logLevel: default
+
 otelGoInstrumentation:
   enabled: false
   OTEL_EXPORTER_OTLP_ENDPOINT: ""

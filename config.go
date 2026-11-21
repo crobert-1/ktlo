@@ -23,12 +23,13 @@ import (
 	"ktlo/internal/config"
 	"ktlo/internal/failingtest"
 	"ktlo/internal/github"
+	"ktlo/internal/logging"
 	"ktlo/internal/output"
 	"ktlo/internal/telemetry"
 	"ktlo/internal/testresults"
 )
 
-func runFailingTestJSONReport(ctx context.Context, githubClient *github.Client, failingTestConfig config.FailingTestJSONReportConfig, overwriteExistingReport bool, stderr io.Writer) (resultErr error) {
+func runFailingTestJSONReport(ctx context.Context, githubClient *github.Client, failingTestConfig config.FailingTestJSONReportConfig, overwriteExistingReport bool, logger *logging.Logger) (resultErr error) {
 	startedAt := time.Now()
 	ctx, span := telemetry.StartSpan(ctx, instrumentationName, spanFailingTestCheck)
 	defer func() {
@@ -47,7 +48,7 @@ func runFailingTestJSONReport(ctx context.Context, githubClient *github.Client, 
 	if err != nil {
 		return err
 	}
-	analyzer.SetProgressWriter(stderr)
+	analyzer.SetLogger(logger)
 	return analyzer.Run(ctx)
 }
 

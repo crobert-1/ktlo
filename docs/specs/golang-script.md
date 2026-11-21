@@ -11,6 +11,8 @@ The default config path is `config.yaml`. Override it with `--config FILE` or `-
 after the command. The example configuration is:
 
 ```yaml
+logLevel: default
+
 otelGoInstrumentation:
   enabled: false
   OTEL_EXPORTER_OTLP_ENDPOINT: ""
@@ -37,9 +39,15 @@ repositories:
     # localPath: /Users/name/dev/repository
 ```
 
-The config stores shared repositories, PR status author filters and default stale threshold, flaky-test lookback, and
-optional OpenTelemetry settings. Repository entries require `url`; `enabled` defaults to `true`, and `localPath` is
-optional. At least one repository must be enabled for a command. Unknown YAML fields are errors.
+The config stores the progress log level, shared repositories, PR status author filters and default stale threshold,
+flaky-test lookback, and optional OpenTelemetry settings. Repository entries require `url`; `enabled` defaults to
+`true`, and `localPath` is optional. At least one repository must be enabled for a command. Unknown YAML fields are
+errors.
+
+`logLevel` defaults to `default` and accepts `none`, `default`, or `detailed`, case-insensitively. `none` suppresses
+progress and runtime messages while errors and telemetry setup or shutdown failures remain visible. `default` reports
+command and repository progress and preserves the existing vulnerability scan progress. `detailed` also reports
+workflow collection and PR status operation stages.
 
 `prStatus.dependencyUpdateAuthors` defaults to `dependabot`, `renovate`, and `srv-gh-o11y-gdi` when omitted.
 `prStatus.staleAge` defaults to `7d`; `--stale-age` overrides it for one dependency PR status run.
@@ -94,8 +102,8 @@ Archives are limited to 250 MiB compressed and 250 MiB of selected uncompressed 
 the analysis incomplete. If an archive cannot be associated with a selected job, the analysis is also marked incomplete.
 The attempt archive can include logs for jobs that ktlo does not parse.
 
-A command execution reports total runtime to standard error as its final runtime line. Help output does not emit a runtime
-line. The duration is rounded to the nearest second and includes non-zero hours, minutes, and seconds.
+A command execution reports total runtime to standard error at `default` and `detailed` levels. Help output does not emit
+a runtime line. The duration is rounded to the nearest second and includes non-zero hours, minutes, and seconds.
 
 Progress messages use a shared formatter in `internal/logging`. They are written to standard error with a timestamp and
 a command-specific prefix: `vulnerability`, `flaky-test-analysis`, `generate-report`, or `dependency-pr-status`.

@@ -49,19 +49,19 @@ const (
 type Runner struct {
 	dependencyUpdateAuthors []common.PullRequestAuthor
 	githubClient            *github.Client
-	progressWriter          io.Writer
+	logger                  *logging.Logger
 	lookback                time.Duration
 	parseWorkflowFailures   bool
 	staleAge                time.Duration
 	workflowProvider        *failingtest.GitHubWorkflowProvider
 }
 
-func (r *Runner) SetProgressWriter(writer io.Writer) {
-	r.progressWriter = writer
+func (r *Runner) SetLogger(logger *logging.Logger) {
+	r.logger = logger
 }
 
 func (r *Runner) progressf(format string, arguments ...any) {
-	logging.Progressf(r.progressWriter, logging.PrefixDependencyPRStatus, format, arguments...)
+	r.logger.Detailedf(format, arguments...)
 }
 
 func (r *Runner) isStale(pullRequest github.PullRequest, now time.Time) bool {

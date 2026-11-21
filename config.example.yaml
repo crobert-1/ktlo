@@ -1,3 +1,5 @@
+logLevel: default
+
 otelGoInstrumentation:
   enabled: false
   OTEL_EXPORTER_OTLP_ENDPOINT: ""
