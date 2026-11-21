@@ -75,8 +75,9 @@ Each command has its own help output, available with `<command> --help` or `ktlo
 other command prefixes are not inferred. The nested dependency PR action is `update` (`u`), available as
 `ktlo dependency-pr-status update`, `ktlo d update`, or `ktlo d u`.
 
-- `ktlo vulnerability-check [ID]` (`ktlo v [ID]`) requires one vulnerability identifier and checks all enabled
-  repositories. The identifier is a command argument, not a config field.
+- `ktlo vulnerability-check [options] ID` (`ktlo v [options] ID`) requires one vulnerability identifier and checks
+  all enabled repositories. `--release-version TAG` checks that exact release tag and prints one status line per
+  repository. The identifier is a command argument, not a config field.
 - `ktlo flaky-test-analysis` (`ktlo f`) collects workflow data and updates the local JSON report. `--lookback DURATION`
   overrides the config lookback for this run. `--overwrite` discards stored observations and rebuilds the full configured
   lookback.

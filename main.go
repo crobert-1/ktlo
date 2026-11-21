@@ -51,7 +51,10 @@ const (
 	errorConfigFlagValue                  = "option --config requires a file path"
 	errorInvalidLookbackOverride          = "invalid --lookback value: %w"
 	errorInvalidStaleAgeOverride          = "invalid --stale-age value: %w"
+	errorMissingReleaseVersion            = "--release-version requires a release tag"
 	errorMissingVulnerabilityID           = "vulnerability-check requires a vulnerability ID"
+	errorReleaseVulnerabilityFailures     = "release vulnerability check completed with repository failures"
+	errorReleaseVulnerabilitySummaryWrite = "could not write release vulnerability summary: %w"
 	errorRepositoryFailure                = "repository %q failed: %v"
 	errorTelemetrySetup                   = "OpenTelemetry setup failed: %v"
 	errorTelemetryShutdown                = "OpenTelemetry shutdown failed: %v"
@@ -68,6 +71,7 @@ const (
 	flagNoParseWorkflowFailures           = "no-parse-workflow-failures"
 	flagOverwrite                         = "overwrite"
 	flagParseWorkflowFailures             = "parse-workflow-failures"
+	flagReleaseVersion                    = "release-version"
 	flagStaleAge                          = "stale-age"
 	githubTokenEnv                        = "GH_TOKEN"
 	githubTokenFallbackEnv                = "GITHUB_TOKEN"
@@ -75,6 +79,7 @@ const (
 	helpNoParseWorkflowFailures           = "Skip targeted workflow log parsing for this run"
 	helpOverwrite                         = "Rebuild the report instead of reusing stored data"
 	helpParseWorkflowFailures             = "Parse failed workflow runs for more failure details (enabled by default)"
+	helpReleaseVersion                    = "Check the vulnerability at this release tag"
 	helpStaleAge                          = "Override the configured stale PR threshold"
 	instrumentationName                   = "ktlo/main"
 	lineEnding                            = "\n"
@@ -82,6 +87,7 @@ const (
 	messageVulnerabilityReportPath        = "Saved report: %s"
 	messageVulnerabilityReportStart       = "Writing detailed Markdown reports to repository result files."
 	messageVulnerabilityRepositoryFailure = "Vulnerability Check %s/%s %s failed: %s"
+	releaseVulnerabilitySummaryFormat     = "%s/%s@%s: %s\n"
 	shortcutDependencyPRStatus            = "d"
 	shortcutFlakyTestAnalysis             = "f"
 	shortcutGenerateReport                = "g"
@@ -201,11 +207,13 @@ Arguments:
   ID  Vulnerability identifier, such as CVE-2026-1234 or GO-2026-1234
 
 Options:
+  --release-version TAG      Check the vulnerability at this release tag
   -c, --config FILE  Config file to use (default: config.yaml)
   -h, --help         Show this help
 
 Examples:
   ktlo v CVE-2026-1234
+  ktlo v --release-version v1.2.3 CVE-2026-1234
   ktlo --config config.yaml vulnerability-check GO-2026-1234
 `
 )
@@ -216,6 +224,7 @@ type cliInvocation struct {
 	lookback              string
 	overwrite             bool
 	parseWorkflowFailures bool
+	releaseVersion        string
 	staleAge              string
 	vulnerabilityID       string
 }
@@ -254,7 +263,9 @@ func run(args []string, stdout io.Writer, stderr io.Writer) (exitCode int) {
 	startedAt := time.Now()
 	logger := logging.New(stderr, commandLogPrefix(invocation.command), loadedConfig.EffectiveLogLevel())
 	defer func() {
-		logger.Progressf(messageRunDuration, formatRunDuration(time.Since(startedAt)))
+		if invocation.releaseVersion == emptyString {
+			logger.Progressf(messageRunDuration, formatRunDuration(time.Since(startedAt)))
+		}
 	}()
 
 	shutdownTelemetry, telemetryErr := telemetry.Setup(rootContext, loadedConfig.OTelGoInstrumentation)
@@ -337,15 +348,8 @@ func parseCLIInvocation(args []string) (cliInvocation, string, error) {
 		if helpRequested {
 			return invocation, helpTextVulnerabilityCheck, nil
 		}
-		if len(commandArgs) == 0 {
-			return invocation, helpTextVulnerabilityCheck, fmt.Errorf(errorMissingVulnerabilityID)
-		}
-		if len(commandArgs) != 1 || strings.HasPrefix(commandArgs[0], dashPrefix) {
-			return invocation, helpTextVulnerabilityCheck, fmt.Errorf(errorUnexpectedArguments, commandArgs)
-		}
-		invocation.vulnerabilityID = strings.TrimSpace(commandArgs[0])
-		if invocation.vulnerabilityID == emptyString {
-			return invocation, helpTextVulnerabilityCheck, fmt.Errorf(errorMissingVulnerabilityID)
+		if err := parseVulnerabilityCheckOptions(commandArgs, &invocation); err != nil {
+			return invocation, helpTextVulnerabilityCheck, err
 		}
 		return invocation, emptyString, nil
 	case commandFlakyTestAnalysis, shortcutFlakyTestAnalysis:
@@ -384,6 +388,39 @@ func parseCLIInvocation(args []string) (cliInvocation, string, error) {
 	default:
 		return invocation, emptyString, fmt.Errorf(errorUnknownCommand, commandName)
 	}
+}
+
+func parseVulnerabilityCheckOptions(args []string, invocation *cliInvocation) error {
+	flags := flag.NewFlagSet(commandVulnerabilityCheck, flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	releaseVersion := flags.String(flagReleaseVersion, emptyString, helpReleaseVersion)
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() == 0 {
+		return fmt.Errorf(errorMissingVulnerabilityID)
+	}
+	if flags.NArg() != 1 || strings.HasPrefix(flags.Arg(0), dashPrefix) {
+		return fmt.Errorf(errorUnexpectedArguments, flags.Args())
+	}
+	invocation.vulnerabilityID = strings.TrimSpace(flags.Arg(0))
+	if invocation.vulnerabilityID == emptyString {
+		return fmt.Errorf(errorMissingVulnerabilityID)
+	}
+	invocation.releaseVersion = strings.TrimSpace(*releaseVersion)
+	if invocation.releaseVersion == emptyString && hasFlag(args, flagReleaseVersion) {
+		return fmt.Errorf(errorMissingReleaseVersion)
+	}
+	return nil
+}
+
+func hasFlag(args []string, name string) bool {
+	for _, argument := range args {
+		if argument == dashPrefix+dashPrefix+name || strings.HasPrefix(argument, dashPrefix+dashPrefix+name+equalsSign) {
+			return true
+		}
+	}
+	return false
 }
 
 func extractCLIOptions(args []string) ([]string, string, bool, error) {
@@ -455,8 +492,14 @@ func runCommand(ctx context.Context, invocation cliInvocation, loadedConfig conf
 	startedAt := time.Now()
 	enabledRepositories := loadedConfig.EnabledRepositories()
 	logger := logging.New(stderr, commandLogPrefix(invocation.command), loadedConfig.EffectiveLogLevel())
-	logger.Progressf("Starting %s for %d enabled repository/repositories.", invocation.command, len(enabledRepositories))
+	showProgress := invocation.command != commandVulnerabilityCheck || invocation.releaseVersion == emptyString
+	if showProgress {
+		logger.Progressf("Starting %s for %d enabled repository/repositories.", invocation.command, len(enabledRepositories))
+	}
 	defer func() {
+		if !showProgress {
+			return
+		}
 		if exitCode == 0 {
 			logger.Progressf("Completed %s successfully.", invocation.command)
 			return
@@ -468,8 +511,10 @@ func runCommand(ctx context.Context, invocation cliInvocation, loadedConfig conf
 		telemetry.FinishSpan(ctx, span, spanRunChecks, startedAt, exitCode != 0)
 	}()
 	if invocation.command == commandVulnerabilityCheck {
-		if err := runVulnerabilityCheck(ctx, loadedConfig, invocation.vulnerabilityID, token, stdout, logger); err != nil {
-			logger.Progressf("Command failed: %v", err)
+		if err := runVulnerabilityCheck(ctx, loadedConfig, invocation.vulnerabilityID, invocation.releaseVersion, token, stdout, logger); err != nil {
+			if showProgress {
+				logger.Progressf("Command failed: %v", err)
+			}
 			_, _ = fmt.Fprintf(stderr, errorVulnerabilityCheck+lineEnding, err)
 			if errors.Is(err, github.ErrInvalidRepositoryURL) {
 				return exitCodeUsage
@@ -581,7 +626,7 @@ func formatDurationPart(value int64, unit string) string {
 	return fmt.Sprintf(pluralDurationPart, value, unit, pluralSuffix)
 }
 
-func runVulnerabilityCheck(ctx context.Context, loadedConfig config.Config, vulnerabilityID string, token string, stdout io.Writer, logger *logging.Logger) error {
+func runVulnerabilityCheck(ctx context.Context, loadedConfig config.Config, vulnerabilityID string, releaseVersion string, token string, stdout io.Writer, logger *logging.Logger) error {
 	enabledRepositories := loadedConfig.EnabledRepositories()
 	repositories := make([]common.Repository, 0, len(enabledRepositories))
 	for _, repositoryConfig := range enabledRepositories {
@@ -596,10 +641,26 @@ func runVulnerabilityCheck(ctx context.Context, loadedConfig config.Config, vuln
 	if err != nil {
 		return err
 	}
-	analyzer.SetLogger(logger)
+	if releaseVersion == emptyString {
+		analyzer.SetLogger(logger)
+	} else {
+		analyzer.SetLogger(nil)
+		analyzer.SetReleaseVersion(releaseVersion)
+	}
 	report, err := analyzer.Analyze(ctx, vulnerabilityID, repositories)
 	if err != nil {
 		return err
+	}
+	if releaseVersion != emptyString {
+		for _, repository := range report.Repositories {
+			if _, err := fmt.Fprintf(stdout, releaseVulnerabilitySummaryFormat, repository.Repository.Owner, repository.Repository.Name, releaseVersion, repository.Status); err != nil {
+				return fmt.Errorf(errorReleaseVulnerabilitySummaryWrite, err)
+			}
+		}
+		if report.HasFailures() {
+			return fmt.Errorf(errorReleaseVulnerabilityFailures)
+		}
+		return nil
 	}
 	logger.Progressf(messageVulnerabilityReportStart)
 	reportPaths, err := output.WriteVulnerabilityReportFiles(report)

@@ -63,7 +63,8 @@ The command selects the operation. Each command runs for every enabled repositor
   does not call GitHub APIs.
 - **Vulnerability check** (`vulnerability-check`, shortcut `v`) analyzes the supplied vulnerability ID across the
   configured repositories and writes detailed reports. Pass one supported vulnerability ID, such as a CVE, GHSA, or
-  Go vulnerability ID, after the command.
+  Go vulnerability ID, after the command. Add `--release-version TAG` to scan that release tag and print one concise
+  status line per repository.
 
   **Scope warning:** The check assesses dependencies at the latest commit on `main` only. If a dependency was removed,
   it may have been vulnerable in an earlier commit, but it is no longer present in the scanned snapshot and that past
