@@ -1,7 +1,8 @@
 # ktlo
 
-`ktlo` runs one selected command against repositories listed in a YAML configuration file. PR status results are written as
-Markdown under `results/github/<owner>/<repository>/DEPENDENCY-BUMP-PRS.md`.
+`ktlo` provides commands to check dependency-update pull requests, analyze flaky tests, generate test reports, and assess
+vulnerabilities across enabled GitHub repositories listed in a YAML configuration file. Commands write Markdown or JSON
+results under `results/github/<owner>/<repository>/`.
 
 ## Prerequisite
 
@@ -43,14 +44,6 @@ the short form `-c` and may appear before or after the command. For example:
 ./bin/ktlo d u --stale-age 14d --no-parse-workflow-failures
 ```
 
-## Go maintenance targets
-
-Run `make gotidy`, `make gofmt`, or `make golint` from the repository root to tidy modules, format Go files, or run
-golangci-lint across all Go modules. Each Go module directory needs a `Makefile` that includes the shared
-`Makefile.Common` using a relative path from that module directory. The lint target requires `golangci-lint` to be
-installed and available on `PATH`. `make addlicense` adds the repository's Apache 2.0 header to Go files, and
-`make checklicense` checks that each Go file has it; both targets require `addlicense` on `PATH`.
-
 ## Run modes
 
 The command selects the operation. Each command runs for every enabled repository in the config file.
@@ -69,7 +62,8 @@ The command selects the operation. Each command runs for every enabled repositor
   workflow/job/step failures observed on `main`, with failure counts, rates, and a recent failure example. This command
   does not call GitHub APIs.
 - **Vulnerability check** (`vulnerability-check`, shortcut `v`) analyzes the supplied vulnerability ID across the
-  configured repositories and writes detailed reports. Pass one CVE or Go vulnerability ID after the command.
+  configured repositories and writes detailed reports. Pass one supported vulnerability ID, such as a CVE, GHSA, or
+  Go vulnerability ID, after the command.
 
 `dependency-pr-status update` parses linked failed workflow runs by default. Add `--no-parse-workflow-failures` to skip
 that work for a run. Use
@@ -106,7 +100,43 @@ names appear only on trace spans, not as metric dimensions. The CLI flushes tele
 ## Configuration
 
 The YAML file passed with `--config` stores reusable settings and the repositories to check. The command selects which
-operation runs. The example configuration is shown in [config.example.yaml](config.example.yaml):
+operation runs. `--config` defaults to `config.yaml`. Unknown YAML keys, obsolete URL-only repository entries, and
+configurations without at least one enabled repository fail validation.
+
+### Options
+
+- `otelGoInstrumentation` (optional; default: disabled): Configures OpenTelemetry export.
+  - `enabled` (optional; default: `false`): Enables tracing and duration metrics.
+  - `OTEL_EXPORTER_OTLP_ENDPOINT` (optional; default: unset): Base OTLP gRPC endpoint for traces and metrics.
+  - `OTEL_EXPORTER_OTLP_INSECURE` (optional; default: unset): Configures insecure transport for the base endpoint.
+  - `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` (optional; default: unset): Overrides the base endpoint for metrics.
+  - `OTEL_EXPORTER_OTLP_METRICS_INSECURE` (optional; default: unset): Configures insecure transport for the metrics endpoint.
+  - `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` (optional; default: unset): Overrides the base endpoint for traces.
+  - `OTEL_EXPORTER_OTLP_TRACES_INSECURE` (optional; default: unset): Configures insecure transport for the traces endpoint.
+  - Empty or omitted exporter values leave corresponding process environment variables unchanged; non-empty configured
+    values override them.
+- `prStatus` (optional): Configures Dependency PR Status.
+  - `dependencyUpdateAuthors` (optional; default: `dependabot`, `renovate`, `srv-gh-o11y-gdi`): GitHub author logins
+    used to identify dependency-update PRs.
+  - `staleAge` (optional; default: `7d`): Marks PRs whose latest commit is older than this duration as stale. Accepts
+    positive durations such as `60m`, `12h`, and `7d`; `--stale-age` overrides it for one run.
+- `failingTestCheck` (optional): Configures flaky-test analysis.
+  - `jsonReport` (optional): Configures the stored workflow test report.
+    - `lookback` (optional; default: `7d`): How far back to search for workflow runs. Accepts positive durations such
+      as `30m`, `12h`, and `7d`; `--lookback` overrides it for one run.
+- `repositories` (required; no default): Repositories checked by commands. Supply at least one entry and enable at least
+  one repository.
+  - Each entry is an object with these options:
+    - `url` (required; no default): GitHub repository URL.
+    - `enabled` (optional; default: `true`): Whether checks include this repository.
+    - `localPath` (optional; no default): Path to an existing local checkout for Vulnerability Check. Its `origin` must
+      match `url`. KTLO scans the working tree as-is without fetching, switching branches, or modifying files or Git
+      metadata. Uncommitted changes may be included while links point to the checkout's current `HEAD`. Relative paths
+      are resolved from the process working directory.
+
+### Example
+
+See [config.example.yaml](config.example.yaml) for a complete example:
 
 ```yaml
 otelGoInstrumentation:
@@ -135,29 +165,8 @@ repositories:
     # localPath: /Users/name/dev/repository
 ```
 
-- `repositories` (default: none): GitHub repositories to check. Each entry must be an object with a required `url`,
-  optional `enabled` (default: `true`), and optional `localPath`; URL-only string entries fail config validation.
-  Disabled repositories are skipped by every check. `localPath` supplies an existing local clone for Vulnerability Check;
-  ktlo scans its current working tree as-is without fetching, switching branches, or modifying repository files or Git
-  metadata. Its `origin` remote must match the configured URL. The scan may include uncommitted changes, while report
-  links point to the checkout's current `HEAD` commit. Relative paths are resolved from the process working directory. At least
-  one repository must be enabled for a command.
-- `prStatus`
-  - `dependencyUpdateAuthors` (default: `dependabot`, `renovate`, `srv-gh-o11y-gdi`): Author logins identifying
-    dependency-update pull requests included in PR status results.
-  - `staleAge` (default: `7d`): Moves PRs whose latest commit is older than this duration into the `Stale` table.
-    Accepts positive durations such as `60m`, `12h`, and `7d`; `--stale-age` overrides it for one run.
-- `failingTestCheck`
-  - `jsonReport`
-    - `lookback` (default: `7d`): How far back to search for workflow runs. GitHub filters by run creation time; ktlo then
-      includes attempts started at or after the cutoff. A run created before the cutoff and rerun during the lookback may
-      be missed. GitHub limits filtered searches to 1,000 results; exceeding that limit marks analysis incomplete.
-      Accepts Go duration units such as `30m` and `12h`, plus `d` for days. Must be positive; `--lookback` overrides
-      it for one analysis run. `--overwrite` rebuilds from the full lookback instead of reusing stored workflow
-      attempts. An unsupported schema version stops the analysis and explains the overwrite option.
-
-Unknown YAML keys are rejected. Commands operate on all enabled repositories unless the config disables an entry.
-`--config` defaults to `config.yaml` and may appear before or after the command.
+Commands operate on all enabled repositories unless the config disables an entry. `--config` may appear before or after
+the command.
 
 ## License
 
