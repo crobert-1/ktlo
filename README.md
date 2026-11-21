@@ -65,6 +65,10 @@ The command selects the operation. Each command runs for every enabled repositor
   configured repositories and writes detailed reports. Pass one supported vulnerability ID, such as a CVE, GHSA, or
   Go vulnerability ID, after the command.
 
+  **Scope warning:** The check assesses dependencies at the latest commit on `main` only. If a dependency was removed,
+  it may have been vulnerable in an earlier commit, but it is no longer present in the scanned snapshot and that past
+  exposure is not reported.
+
 `dependency-pr-status update` parses linked failed workflow runs by default. Add `--no-parse-workflow-failures` to skip
 that work for a run. Use
 `--lookback` and `--overwrite` with `flaky-test-analysis` to override the configured lookback or rebuild the report.
