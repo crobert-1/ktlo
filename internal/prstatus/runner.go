@@ -27,6 +27,7 @@ import (
 	"ktlo/internal/common"
 	"ktlo/internal/failingtest"
 	"ktlo/internal/github"
+	"ktlo/internal/logging"
 	"ktlo/internal/output"
 	"ktlo/internal/telemetry"
 	"ktlo/internal/testresults"
@@ -48,10 +49,19 @@ const (
 type Runner struct {
 	dependencyUpdateAuthors []common.PullRequestAuthor
 	githubClient            *github.Client
+	progressWriter          io.Writer
 	lookback                time.Duration
 	parseWorkflowFailures   bool
 	staleAge                time.Duration
 	workflowProvider        *failingtest.GitHubWorkflowProvider
+}
+
+func (r *Runner) SetProgressWriter(writer io.Writer) {
+	r.progressWriter = writer
+}
+
+func (r *Runner) progressf(format string, arguments ...any) {
+	logging.Progressf(r.progressWriter, logging.PrefixDependencyPRStatus, format, arguments...)
 }
 
 func (r *Runner) isStale(pullRequest github.PullRequest, now time.Time) bool {
@@ -102,10 +112,13 @@ func (r *Runner) Run(ctx context.Context, stdout io.Writer) (resultErr error) {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	repository := r.githubClient.TargetRepository()
+	r.progressf("Fetching dependency update pull requests for %s/%s.", repository.Owner, repository.Name)
 	pullRequests, err := r.githubClient.OpenDependencyBumpPullRequests(ctx, r.dependencyUpdateAuthors)
 	if err != nil {
 		return err
 	}
+	r.progressf("Found %d dependency update pull request(s).", len(pullRequests))
 	now := time.Now()
 	activePullRequests := make([]github.PullRequest, 0, len(pullRequests))
 	for _, pullRequest := range pullRequests {
@@ -114,6 +127,7 @@ func (r *Runner) Run(ctx context.Context, stdout io.Writer) (resultErr error) {
 		}
 		activePullRequests = append(activePullRequests, pullRequest)
 	}
+	r.progressf("Analyzing CI status for %d non-stale pull request(s).", len(activePullRequests))
 	analysisResults, err := r.githubClient.AnalyzePullRequests(ctx, activePullRequests)
 	if err != nil {
 		return err
@@ -191,7 +205,12 @@ func (r *Runner) Run(ctx context.Context, stdout io.Writer) (resultErr error) {
 			r.addReportAssessmentsForFailedCIContexts(reportState.report, results)
 		}
 	}
-	return output.PrintPullRequestCIResults(ctx, stdout, r.githubClient.TargetRepository(), results)
+	r.progressf("Writing pull request status results for %s/%s.", repository.Owner, repository.Name)
+	if err := output.PrintPullRequestCIResults(ctx, stdout, repository, results); err != nil {
+		return err
+	}
+	r.progressf("Pull request status results are complete for %s/%s.", repository.Owner, repository.Name)
+	return nil
 }
 
 func (r *Runner) parseWorkflowFailuresForPullRequests(ctx context.Context, results []output.PullRequestResult, report *testresults.Report) ([]testresults.Workflow, map[int][]string) {

@@ -17,12 +17,14 @@ package failingtest
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
 
 	"ktlo/internal/common"
+	"ktlo/internal/logging"
 	"ktlo/internal/telemetry"
 	"ktlo/internal/testresults"
 )
@@ -49,9 +51,18 @@ const traceAttributeKnownWorkflowRunAttemptCount = "ktlo.workflow_run_attempt.kn
 
 type Analyzer struct {
 	overwriteExistingReport bool
+	progressWriter          io.Writer
 	workflowProvider        WorkflowProvider
 	lookbackDuration        time.Duration
 	testLogParsers          []TestLogParser
+}
+
+func (analyzer *Analyzer) SetProgressWriter(writer io.Writer) {
+	analyzer.progressWriter = writer
+}
+
+func (analyzer *Analyzer) progressf(format string, arguments ...any) {
+	logging.Progressf(analyzer.progressWriter, logging.PrefixFlakyTestAnalysis, format, arguments...)
 }
 
 // NewAnalyzer uses the package's default parser set unless parsers are supplied.
@@ -105,6 +116,7 @@ func (analyzer *Analyzer) Run(ctx context.Context) (resultErr error) {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	analyzer.progressf("Starting workflow analysis for %s/%s with a %s lookback.", analyzer.workflowProvider.Repository().Owner, analyzer.workflowProvider.Repository().Name, analyzer.lookbackDuration)
 
 	now := time.Now().UTC()
 	cutoff := now.Add(-analyzer.lookbackDuration)
@@ -112,6 +124,7 @@ func (analyzer *Analyzer) Run(ctx context.Context) (resultErr error) {
 	if err != nil {
 		return err
 	}
+	analyzer.progressf("Loaded %d stored workflow record(s).", len(report.Workflows))
 	knownAttempts := make(map[common.WorkflowRunAttemptKey]struct{})
 	if !analyzer.overwriteExistingReport && !report.LookbackStart.IsZero() && !report.LookbackStart.After(cutoff) {
 		for _, workflow := range report.Workflows {
@@ -121,7 +134,12 @@ func (analyzer *Analyzer) Run(ctx context.Context) (resultErr error) {
 		}
 	}
 	workflowRuns, collectionErr := analyzer.collectWorkflowRuns(ctx, cutoff, knownAttempts)
-	return analyzer.persistReport(ctx, report, workflowRuns, cutoff, now, collectionErr)
+	analyzer.progressf("Collected %d workflow record(s); writing the analysis report.", len(workflowRuns))
+	resultErr = analyzer.persistReport(ctx, report, workflowRuns, cutoff, now, collectionErr)
+	if resultErr == nil {
+		analyzer.progressf("Workflow analysis report updated.")
+	}
+	return resultErr
 }
 
 func (analyzer *Analyzer) loadReport(ctx context.Context) (loadedReport *testresults.Report, resultErr error) {
@@ -155,7 +173,9 @@ func (analyzer *Analyzer) collectWorkflowRuns(ctx context.Context, cutoff time.T
 		)
 		telemetry.FinishSpan(ctx, span, spanCollectWorkflowRuns, startedAt, resultErr != nil)
 	}()
+	analyzer.progressf("Fetching workflow attempts since %s; %d complete attempt(s) are already stored.", cutoff.Format(time.RFC3339), len(knownAttempts))
 	workflowRunAttempts, listErr := analyzer.workflowProvider.ListWorkflowRunAttempts(ctx, cutoff, knownAttempts)
+	analyzer.progressf("Parsing %d workflow attempt(s).", len(workflowRunAttempts))
 	workflowRuns, resultErr = ParseWorkflowRunAttempts(ctx, analyzer.workflowProvider, workflowRunAttempts, analyzer.testLogParsers...)
 	return workflowRuns, errors.Join(listErr, resultErr)
 }

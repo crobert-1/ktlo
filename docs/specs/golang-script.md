@@ -97,6 +97,12 @@ The attempt archive can include logs for jobs that ktlo does not parse.
 A command execution reports total runtime to standard error as its final runtime line. Help output does not emit a runtime
 line. The duration is rounded to the nearest second and includes non-zero hours, minutes, and seconds.
 
+Progress messages use a shared formatter in `internal/logging`. They are written to standard error with a timestamp and
+a command-specific prefix: `vulnerability`, `flaky-test-analysis`, `generate-report`, or `dependency-pr-status`.
+Repository processing messages identify the repository and report when processing starts and completes. Commands may
+also report meaningful operation stages, such as workflow collection or report writing. Result documents and summaries
+remain on standard output.
+
 ## Runtime instrumentation
 
 OpenTelemetry traces and duration metrics are disabled by default. Set `otelGoInstrumentation.enabled` to `true` to
