@@ -21,4 +21,4 @@ failingTestCheck:
 repositories:
   - url: https://github.com/owner/repository
     enabled: true
-    localPath: /Users/name/dev/repository
+    # localPath: /Users/name/dev/repository

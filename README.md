@@ -20,6 +20,29 @@ cp config.example.yaml config.yaml
 ./bin/ktlo --config config.yaml dependency-pr-status update
 ```
 
+## CLI commands
+
+```text
+ktlo [--config FILE] <command> [arguments]
+
+Commands:
+  vulnerability-check (v) [ID]
+  flaky-test-analysis (f)
+  generate-report (g)
+  dependency-pr-status (d) update (u)
+  help [COMMAND]
+```
+
+Use `ktlo --help` for the command list and `ktlo <command> --help` for command options. The config option also accepts
+the short form `-c` and may appear before or after the command. For example:
+
+```sh
+./bin/ktlo -c config.yaml v CVE-2026-1234
+./bin/ktlo f --lookback 30d --overwrite
+./bin/ktlo g
+./bin/ktlo d u --stale-age 14d --no-parse-workflow-failures
+```
+
 ## Go maintenance targets
 
 Run `make gotidy`, `make gofmt`, or `make golint` from the repository root to tidy modules, format Go files, or run
@@ -46,7 +69,7 @@ The command selects the operation. Each command runs for every enabled repositor
   workflow/job/step failures observed on `main`, with failure counts, rates, and a recent failure example. This command
   does not call GitHub APIs.
 - **Vulnerability check** (`vulnerability-check`, shortcut `v`) analyzes the supplied vulnerability ID across the
-  configured repositories and writes detailed reports.
+  configured repositories and writes detailed reports. Pass one CVE or Go vulnerability ID after the command.
 
 `dependency-pr-status update` parses linked failed workflow runs by default. Add `--no-parse-workflow-failures` to skip
 that work for a run. Use
